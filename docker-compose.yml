@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: vettalaw-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=vettalaw
+    networks:
+      - vettalaw-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: vettalaw-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - mongodb
+    volumes:
+      - ./server:/app
+    networks:
+      - vettalaw-network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: vettalaw-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - vettalaw-network
+    depends_on:
+      - backend
+
+networks:
+  vettalaw-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
