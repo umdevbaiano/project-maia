@@ -251,7 +251,7 @@ Para questões e suporte, abra uma issue no repositório.
 Este projeto foi idealizado e desenvolvido integralmente por **Samuel Miranda**.
 
 * **Líder Técnico & Desenvolvedor Full Stack:** Samuel Miranda
-* **Contato:** [Seu LinkedIn ou Email Aqui](https://www.linkedin.com/in/samuellmiranda)
+* **Contato:** [LinkedIn](https://www.linkedin.com/in/samuellmiranda)
 * **Status:** MVP (Produto Mínimo Viável) para fins acadêmicos e demonstrativos.
 
 ---
