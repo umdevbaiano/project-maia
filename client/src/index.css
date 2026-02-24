@@ -4,11 +4,11 @@
 
 @layer base {
   body {
-    @apply bg-zinc-950 text-zinc-100 font-sans antialiased;
+    @apply bg-gray-50 text-gray-900 dark:bg-zinc-950 dark:text-zinc-100 font-sans antialiased;
   }
 
   * {
-    @apply border-zinc-800;
+    @apply border-gray-200 dark:border-zinc-800;
   }
 
   /* Scrollbar styling */
@@ -17,21 +17,21 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-zinc-900;
+    @apply bg-gray-100 dark:bg-zinc-900;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-700 rounded;
+    @apply bg-gray-300 dark:bg-zinc-700 rounded;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-600;
+    @apply bg-gray-400 dark:bg-zinc-600;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-zinc-900 rounded-lg border border-zinc-800 p-6;
+    @apply bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-6;
   }
 
   .btn-primary {
@@ -39,10 +39,10 @@
   }
 
   .btn-secondary {
-    @apply bg-zinc-800 hover:bg-zinc-700 text-zinc-100 px-4 py-2 rounded-lg transition-colors font-medium;
+    @apply bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-900 dark:text-zinc-100 px-4 py-2 rounded-lg transition-colors font-medium;
   }
 
   .input-field {
-    @apply bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent;
+    @apply bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent;
   }
 }

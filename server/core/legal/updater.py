@@ -4,7 +4,6 @@ Periodically checks planalto.gov.br for changes and re-indexes updated laws.
 Runs as a background task in the FastAPI lifespan.
 """
 import asyncio
-import hashlib
 from datetime import datetime
 
 from core.legal.scraper import scrape_single_law, LAWS_REGISTRY

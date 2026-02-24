@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
 
+    # Email Notifications
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "noreply@maia.com"
+    SMTP_PASSWORD: str = "dummy-password"
+    SMTP_FROM: str = "noreply@maia.com"
+
     # CORS
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",

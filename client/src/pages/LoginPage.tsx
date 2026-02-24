@@ -126,7 +126,7 @@ const LoginPage: React.FC = () => {
                 </div>
 
                 <p className="text-center text-zinc-600 text-xs mt-6">
-                    © 2026 Maia Platform · VettaLaw
+                    © 2026 Maia Platform · Vetta Hub Technology
                 </p>
             </div>
         </div>

@@ -25,6 +25,7 @@ class QuickChatRequest(BaseModel):
     """Request body for quick chat endpoint."""
     currentMessage: str
     history: Optional[list[ChatMessage]] = []
+    caso_id: Optional[str] = None  # If set, chat is scoped to this case
 
 
 class QuickChatResponse(BaseModel):

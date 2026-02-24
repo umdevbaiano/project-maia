@@ -74,8 +74,8 @@ def chunk_by_article(text: str) -> list[dict]:
     Returns list of {"text": ..., "article": ...}
     """
     import re
-    # Match patterns like "Art. 1º", "Art. 1.", "Art. 100", etc.
-    pattern = r'(Art\.\s*\d+[º°]?[\-A-Z]*\.?\s*)'
+    # Match patterns like "Art. 1º", "art. 1o", "Artigo 2", etc.
+    pattern = r'((?:[Aa]rt\.|[Aa]rtigo)\s*\d+(?:[º°oOA-Z\-])*\.?\s*)'
     parts = re.split(pattern, text)
 
     chunks = []

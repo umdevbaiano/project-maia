@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { chatApi } from '../utils/api';
 import type { ChatMessage } from '../types/chat';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -50,47 +51,84 @@ const ChatPage: React.FC = () => {
     setInputValue('');
     setIsLoading(true);
 
-    const typingMessage: ChatMessage = {
-      id: 'typing',
-      role: 'ai',
-      content: 'Digitando...',
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, typingMessage]);
+    // Add streaming AI message placeholder
+    const streamingId = 'streaming-' + Date.now();
+    setMessages((prev) => [
+      ...prev,
+      { id: streamingId, role: 'ai', content: '', timestamp: new Date().toISOString() },
+    ]);
 
     try {
-      const response = await chatApi.sendQuickMessage({
-        currentMessage: userMessage.content,
+      const token = localStorage.getItem('maia_token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ currentMessage: userMessage.content }),
       });
 
-      setMessages((prev) => {
-        const filtered = prev.filter((msg) => msg.id !== 'typing');
-        return [
-          ...filtered,
-          {
-            role: 'ai',
-            content: response.reply,
-            timestamp: new Date().toISOString(),
-          },
-        ];
-      });
+      if (!response.ok) throw new Error('Stream request failed');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) throw new Error('No reader available');
+
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.chunk) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingId
+                    ? { ...msg, content: msg.content + data.chunk }
+                    : msg
+                )
+              );
+            }
+            if (data.done) {
+              // Remove the streaming ID so it becomes a normal message
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingId ? { ...msg, id: undefined } : msg
+                )
+              );
+            }
+            if (data.error) {
+              throw new Error(data.error);
+            }
+          } catch (parseErr) {
+            // Skip malformed SSE lines
+          }
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages((prev) => {
-        const filtered = prev.filter((msg) => msg.id !== 'typing');
-        return [
-          ...filtered,
-          {
-            role: 'ai',
-            content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
-            timestamp: new Date().toISOString(),
-          },
-        ];
-      });
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingId
+            ? { ...msg, content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.', id: undefined }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -112,14 +150,14 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-zinc-950">
       {/* Header */}
-      <header className="bg-zinc-900 border-b border-zinc-800 px-6 py-4">
+      <header className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
               aria-label="Back to dashboard"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -129,14 +167,14 @@ const ChatPage: React.FC = () => {
                 <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Maia - Assistente Jurídica</h1>
-                <p className="text-sm text-zinc-400">Especializada em Direito Brasileiro</p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Maia - Assistente Jurídica</h1>
+                <p className="text-sm text-gray-500 dark:text-zinc-400">Especializada em Direito Brasileiro</p>
               </div>
             </div>
           </div>
           <button
             onClick={handleClearHistory}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 hover:text-gray-900 dark:text-zinc-300 dark:hover:text-white rounded-lg transition-colors"
             aria-label="Clear chat history"
           >
             <Trash2 className="w-4 h-4" />
@@ -154,30 +192,29 @@ const ChatPage: React.FC = () => {
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="bg-zinc-900 p-8 rounded-2xl border border-zinc-800 max-w-md">
-                <Bot className="w-16 h-16 mx-auto mb-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-white mb-3">
-                  Olá! Sou a Maia
+              <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md p-8 rounded-3xl border border-gray-200/80 dark:border-zinc-800/80 max-w-md shadow-2xl">
+                <Bot className="w-16 h-16 mx-auto mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+                <h2 className="text-2xl tracking-tight font-medium text-gray-900 dark:text-white mb-3">
+                  Olá! Como posso ajudar na sua pesquisa jurídica hoje?
                 </h2>
-                <p className="text-zinc-400 leading-relaxed mb-6">
-                  Sua assistente jurídica especializada em direito brasileiro.
-                  Posso ajudá-lo com pesquisa jurídica, redação de peças,
-                  análise de casos e muito mais.
+                <p className="text-sm text-gray-600 dark:text-zinc-400 leading-relaxed mb-6 font-light">
+                  Sou a Maia, sua inteligência artificial focada em direito brasileiro.
+                  Você pode me pedir estatísticas, formatação de peças ou dúvidas processuais.
                 </p>
                 <div className="grid grid-cols-1 gap-3 text-left">
-                  <div className="bg-zinc-800 p-3 rounded-lg">
-                    <p className="text-sm text-zinc-300">
-                      💡 "Qual o prazo para contestação em ação trabalhista?"
+                  <div className="bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-200/50 dark:border-zinc-700/30 p-4 rounded-2xl">
+                    <p className="text-sm text-gray-700 dark:text-zinc-300 font-light">
+                      💡 <span className="ml-1 tracking-wide">Qual o prazo atual para contestação em ação trabalhista?</span>
                     </p>
                   </div>
-                  <div className="bg-zinc-800 p-3 rounded-lg">
-                    <p className="text-sm text-zinc-300">
-                      📝 "Me ajude a redigir uma petição inicial"
+                  <div className="bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-200/50 dark:border-zinc-700/30 p-4 rounded-2xl">
+                    <p className="text-sm text-gray-700 dark:text-zinc-300 font-light">
+                      📝 <span className="ml-1 tracking-wide">Você pode me ajudar a redigir uma petição inicial?</span>
                     </p>
                   </div>
-                  <div className="bg-zinc-800 p-3 rounded-lg">
-                    <p className="text-sm text-zinc-300">
-                      ⚖️ "Explique o artigo 927 do Código Civil"
+                  <div className="bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-200/50 dark:border-zinc-700/30 p-4 rounded-2xl">
+                    <p className="text-sm text-gray-700 dark:text-zinc-300 font-light">
+                      ⚖️ <span className="ml-1 tracking-wide">Me explique os requisitos da Lei Maria da Penha</span>
                     </p>
                   </div>
                 </div>
@@ -198,11 +235,10 @@ const ChatPage: React.FC = () => {
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] rounded-lg px-6 py-4 ${
-                      message.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-zinc-900 text-zinc-100 border border-zinc-800'
-                    }`}
+                    className={`max-w-[80%] rounded-lg px-6 py-4 ${message.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 border border-gray-200 dark:border-zinc-800'
+                      }`}
                   >
                     {message.id === 'typing' ? (
                       <div className="flex items-center gap-2">
@@ -210,11 +246,11 @@ const ChatPage: React.FC = () => {
                         <span>{message.content}</span>
                       </div>
                     ) : (
-                      <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                       </div>
                     )}
-                    <div className="mt-2 text-xs opacity-60">
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 opacity-80">
                       {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -232,7 +268,7 @@ const ChatPage: React.FC = () => {
       {/* Input Area - Floating Command Bar */}
       <div className="pb-8">
         <div className="max-w-3xl mx-auto px-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-4">
             <div className="flex gap-3">
               <input
                 type="text"
@@ -240,7 +276,7 @@ const ChatPage: React.FC = () => {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Digite sua pergunta jurídica..."
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-5 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                className="flex-1 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-5 py-3 text-gray-900 dark:text-zinc-100 placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 disabled={isLoading}
               />
               <button
@@ -262,7 +298,7 @@ const ChatPage: React.FC = () => {
                 )}
               </button>
             </div>
-            <p className="text-xs text-zinc-500 mt-3 text-center">
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-3 text-center">
               Pressione Enter para enviar • Shift+Enter para nova linha
             </p>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Plus, Search, Trash2, Edit3, X, Loader2 } from 'lucide-react';
+import { Briefcase, Plus, Search, Trash2, Edit3, X, Loader2, MessageSquare } from 'lucide-react';
+import CaseChatPanel from '../components/CaseChatPanel';
 import api from '../utils/api';
 import type { Caso, CasoCreateRequest, CasoStatus, CasoTipo } from '../types/caso';
 import { STATUS_LABELS, TIPO_LABELS, STATUS_COLORS } from '../types/caso';
@@ -14,6 +15,7 @@ const CasosPage: React.FC = () => {
         numero: '', titulo: '', tipo: 'civel', status: 'em_andamento',
     });
     const [saving, setSaving] = useState(false);
+    const [chatCaso, setChatCaso] = useState<Caso | null>(null);
 
     const fetchCasos = async () => {
         try {
@@ -109,6 +111,7 @@ const CasosPage: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 text-sm text-zinc-400">{caso.cliente_nome || '—'}</td>
                                     <td className="px-6 py-4 text-right">
+                                        <button onClick={() => setChatCaso(caso)} className="text-zinc-400 hover:text-purple-400 p-1 mr-2 transition-colors" title="Chat do Processo"><MessageSquare className="w-4 h-4" /></button>
                                         <button onClick={() => openEdit(caso)} className="text-zinc-400 hover:text-blue-400 p-1 mr-2 transition-colors"><Edit3 className="w-4 h-4" /></button>
                                         <button onClick={() => handleDelete(caso.id)} className="text-zinc-400 hover:text-red-400 p-1 transition-colors"><Trash2 className="w-4 h-4" /></button>
                                     </td>
@@ -165,6 +168,16 @@ const CasosPage: React.FC = () => {
                                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : 'Salvar'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Case Chat Drawer */}
+            {chatCaso && (
+                <div className="fixed inset-0 z-50 flex">
+                    <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setChatCaso(null)} />
+                    <div className="w-[420px] bg-zinc-950 border-l border-zinc-800 shadow-2xl">
+                        <CaseChatPanel casoId={chatCaso.id} casoTitulo={chatCaso.titulo} onClose={() => setChatCaso(null)} />
                     </div>
                 </div>
             )}

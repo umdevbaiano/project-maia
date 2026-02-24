@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 
 from database import get_database
 from middleware import get_current_user
-from services import document_service
+from services import document_service, audit_service
 from models.document import DocumentUploadResponse
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -53,6 +53,11 @@ async def upload_document(
             workspace_id=current_user["_workspace_id"],
             user_id=current_user["_user_id"],
         )
+        await audit_service.log_action(
+            db, workspace_id=current_user["_workspace_id"], user_id=current_user["_user_id"],
+            user_email=current_user.get("email", ""), action="UPLOAD", resource_type="documento",
+            resource_id=result.get("id", ""), details=f"Arquivo: {file.filename}",
+        )
         return DocumentUploadResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao processar documento: {str(e)}")
@@ -81,6 +86,11 @@ async def delete_document(
         db = get_database()
         result = await document_service.delete_document(
             db, doc_id, current_user["_workspace_id"]
+        )
+        await audit_service.log_action(
+            db, workspace_id=current_user["_workspace_id"], user_id=current_user["_user_id"],
+            user_email=current_user.get("email", ""), action="DELETE", resource_type="documento",
+            resource_id=doc_id,
         )
         return result
     except ValueError as e:

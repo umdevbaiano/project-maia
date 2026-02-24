@@ -5,7 +5,7 @@ Public endpoints for authentication (no JWT required).
 from fastapi import APIRouter, HTTPException, Depends
 
 from database import get_database
-from services import auth_service
+from services import auth_service, audit_service
 from models.user import (
     RegisterWorkspaceRequest,
     LoginRequest,
@@ -26,6 +26,16 @@ async def register_workspace(request: RegisterWorkspaceRequest):
     try:
         db = get_database()
         result = await auth_service.register_workspace(db, request)
+        # Audit: register
+        await audit_service.log_action(
+            db,
+            workspace_id=result.get("user", {}).get("workspace_id", ""),
+            user_id=result.get("user", {}).get("id", ""),
+            user_email=request.email,
+            action="REGISTER",
+            resource_type="auth",
+            details=f"Workspace: {request.workspace_name}",
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -39,6 +49,15 @@ async def login(request: LoginRequest):
     try:
         db = get_database()
         result = await auth_service.login(db, request)
+        # Audit: login
+        await audit_service.log_action(
+            db,
+            workspace_id=result.get("user", {}).get("workspace_id", ""),
+            user_id=result.get("user", {}).get("id", ""),
+            user_email=request.email,
+            action="LOGIN",
+            resource_type="auth",
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
@@ -67,6 +86,15 @@ async def invite_user(
         result = await auth_service.invite_user(
             db, request, current_user["_workspace_id"]
         )
+        await audit_service.log_action(
+            db,
+            workspace_id=current_user["_workspace_id"],
+            user_id=current_user["_user_id"],
+            user_email=current_user.get("email", ""),
+            action="INVITE",
+            resource_type="auth",
+            details=f"Convidado: {request.email} ({request.role})",
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -93,6 +121,16 @@ async def revoke_user(
         db = get_database()
         result = await auth_service.revoke_user(
             db, user_id, current_user["_workspace_id"]
+        )
+        await audit_service.log_action(
+            db,
+            workspace_id=current_user["_workspace_id"],
+            user_id=current_user["_user_id"],
+            user_email=current_user.get("email", ""),
+            action="REVOKE",
+            resource_type="auth",
+            resource_id=user_id,
+            details="Acesso revogado",
         )
         return result
     except ValueError as e:

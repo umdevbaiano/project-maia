@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { chatApi } from '../utils/api';
 import type { ChatMessage } from '../types/chat';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const ChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -179,11 +180,10 @@ const ChatWidget: React.FC = () => {
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] rounded-lg px-4 py-2 ${
-                  message.role === 'user'
+                className={`max-w-[85%] rounded-lg px-4 py-2 ${message.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-zinc-800 text-zinc-100'
-                }`}
+                  }`}
               >
                 {message.id === 'typing' ? (
                   <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ const ChatWidget: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   </div>
                 )}
               </div>

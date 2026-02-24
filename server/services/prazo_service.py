@@ -64,6 +64,10 @@ async def update_prazo(db: AsyncIOMotorDatabase, prazo_id: str, workspace_id: st
     update_data = {k: v for k, v in data.items() if v is not None}
     if not update_data:
         return await get_prazo(db, prazo_id, workspace_id)
+    
+    if "data_limite" in update_data:
+        update_data["notified"] = False
+        
     update_data["updated_at"] = datetime.utcnow()
     await db[COLLECTION].update_one(
         {"_id": ObjectId(prazo_id), "workspace_id": workspace_id},

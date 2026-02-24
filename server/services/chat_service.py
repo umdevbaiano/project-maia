@@ -1,15 +1,18 @@
 """
 Maia Platform — Chat Service
 Business logic for chat operations, decoupled from HTTP layer (RNF-10).
-All operations are scoped to a workspace_id for multi-tenant isolation (RNF-03).
+Supports both general workspace chat and per-case contextual chat.
 Integrates hybrid RAG retrieval for document + legal-grounded responses (RF-40, RF-41).
 """
 from datetime import datetime
+from typing import Optional, AsyncGenerator
 
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from core.ai.base import AIProvider
 from core.rag import pipeline as rag
+from core.security.encryption import encrypt_field, decrypt_field
 
 
 COLLECTION_NAME = "chat_history"
@@ -22,6 +25,9 @@ def _serialize_message(doc: dict) -> dict:
         del doc["_id"]
         if isinstance(doc.get("timestamp"), datetime):
             doc["timestamp"] = doc["timestamp"].isoformat()
+        # Decrypt content at read time
+        if doc.get("content"):
+            doc["content"] = decrypt_field(doc["content"])
         doc.pop("workspace_id", None)
         doc.pop("user_id", None)
     return doc
@@ -30,13 +36,125 @@ def _serialize_message(doc: dict) -> dict:
 async def get_chat_history(
     db: AsyncIOMotorDatabase,
     workspace_id: str,
+    caso_id: Optional[str] = None,
 ) -> list[dict]:
+    query = {"workspace_id": workspace_id}
+    if caso_id:
+        query["caso_id"] = caso_id
+    else:
+        query["caso_id"] = {"$exists": False}
+
     collection = db[COLLECTION_NAME]
     messages = []
-    cursor = collection.find({"workspace_id": workspace_id}).sort("timestamp", 1)
+    cursor = collection.find(query).sort("timestamp", 1)
     async for doc in cursor:
         messages.append(_serialize_message(doc))
     return messages
+
+
+async def _get_case_context(db: AsyncIOMotorDatabase, caso_id: str, workspace_id: str) -> str:
+    """Build a context string from case data for case-scoped chat."""
+    try:
+        caso = await db["casos"].find_one({"_id": ObjectId(caso_id), "workspace_id": workspace_id})
+        if not caso:
+            return ""
+
+        context = f"""
+📋 CONTEXTO DO PROCESSO (chat vinculado):
+- Título: {caso.get('titulo', 'N/A')}
+- Número: {caso.get('numero', 'N/A')}
+- Tipo: {caso.get('tipo', 'N/A')}
+- Status: {caso.get('status', 'N/A')}
+- Descrição: {caso.get('descricao', 'N/A')}
+"""
+        # Join client info
+        if caso.get("cliente_id"):
+            cliente = await db["clientes"].find_one({"_id": ObjectId(caso["cliente_id"])})
+            if cliente:
+                context += f"- Cliente: {cliente.get('nome', 'N/A')}\n"
+                context += f"- Documento: {cliente.get('documento', 'N/A')}\n"
+
+        # Join deadlines
+        prazos_cursor = db["prazos"].find({"caso_id": caso_id, "workspace_id": workspace_id}).sort("data_limite", 1).limit(5)
+        prazos_list = []
+        async for p in prazos_cursor:
+            prazos_list.append(f"  • {p.get('titulo', 'N/A')} — {p.get('data_limite', 'N/A')} ({p.get('status', 'N/A')})")
+        if prazos_list:
+            context += "- Prazos vinculados:\n" + "\n".join(prazos_list) + "\n"
+
+        context += "\nResponda SEMPRE considerando os dados deste processo. Se o advogado perguntar algo genérico, relacione ao caso quando possível.\n"
+        return context
+
+    except Exception as e:
+        print(f"Error building case context: {e}")
+        return ""
+
+
+async def _prepare_chat_context(
+    db: AsyncIOMotorDatabase,
+    message: str,
+    workspace_id: str,
+    user_id: str,
+    caso_id: Optional[str] = None,
+):
+    """
+    Shared preparation logic for both sync and streaming chat:
+    1. Save user message
+    2. Load conversation history
+    3. Build case context
+    4. Retrieve RAG chunks
+    Returns (collection, context, full_prompt, rag_chunks, legal_chunks)
+    """
+    collection = db[COLLECTION_NAME]
+
+    # 1. Save user message (encrypted at rest)
+    user_message = {
+        "role": "user",
+        "content": encrypt_field(message),
+        "timestamp": datetime.utcnow(),
+        "workspace_id": workspace_id,
+        "user_id": user_id,
+    }
+    if caso_id:
+        user_message["caso_id"] = caso_id
+    await collection.insert_one(user_message)
+
+    # 2. Load recent history
+    history_query = {"workspace_id": workspace_id}
+    if caso_id:
+        history_query["caso_id"] = caso_id
+    else:
+        history_query["caso_id"] = {"$exists": False}
+
+    context = []
+    cursor = (
+        collection.find(history_query)
+        .sort("timestamp", -1)
+        .limit(10)
+    )
+    async for doc in cursor:
+        content = decrypt_field(doc["content"]) if doc.get("content") else ""
+        context.append({"role": doc["role"], "content": content})
+    context.reverse()
+
+    # 3. Build case context
+    case_context_str = ""
+    if caso_id:
+        case_context_str = await _get_case_context(db, caso_id, workspace_id)
+
+    # 4. Hybrid RAG
+    rag_chunks = []
+    legal_chunks = []
+    try:
+        search_query = f"{case_context_str[:200]} {message}" if case_context_str else message
+        result = await rag.retrieve_hybrid(workspace_id, search_query)
+        rag_chunks = result.get("workspace", [])
+        legal_chunks = result.get("legal", [])
+    except Exception as e:
+        print(f"RAG retrieval failed (non-blocking): {e}")
+
+    full_prompt = f"{case_context_str}\n{message}" if case_context_str else message
+    return collection, context, full_prompt, rag_chunks, legal_chunks
 
 
 async def send_message(
@@ -45,70 +163,84 @@ async def send_message(
     ai_provider: AIProvider,
     workspace_id: str,
     user_id: str,
+    caso_id: Optional[str] = None,
 ) -> str:
     """
-    Process a user message:
-    1. Save user message to MongoDB
-    2. Load recent history for context
-    3. Hybrid RAG retrieval: legal base + workspace docs
-    4. Generate AI response with both contexts
-    5. Save AI response
+    Process a user message (non-streaming):
+    1. Prepare context (save user msg, load history, RAG)
+    2. Generate AI response
+    3. Save AI response
     """
-    collection = db[COLLECTION_NAME]
-
-    # 1. Save user message
-    user_message = {
-        "role": "user",
-        "content": message,
-        "timestamp": datetime.utcnow(),
-        "workspace_id": workspace_id,
-        "user_id": user_id,
-    }
-    await collection.insert_one(user_message)
-
-    # 2. Load recent history
-    context = []
-    cursor = (
-        collection.find({"workspace_id": workspace_id})
-        .sort("timestamp", -1)
-        .limit(10)
+    collection, context, full_prompt, rag_chunks, legal_chunks = await _prepare_chat_context(
+        db, message, workspace_id, user_id, caso_id
     )
-    async for doc in cursor:
-        context.append({"role": doc["role"], "content": doc["content"]})
-    context.reverse()
 
-    # 3. Hybrid RAG retrieval (legal + workspace docs)
-    rag_chunks = []
-    legal_chunks = []
-    try:
-        result = await rag.retrieve_hybrid(workspace_id, message)
-        rag_chunks = result.get("workspace", [])
-        legal_chunks = result.get("legal", [])
-    except Exception as e:
-        print(f"RAG retrieval failed (non-blocking): {e}")
-
-    # 4. Generate AI response with both contexts
     ai_reply = await ai_provider.generate(
-        message, context, rag_context=rag_chunks, legal_context=legal_chunks
+        full_prompt, context, rag_context=rag_chunks, legal_context=legal_chunks
     )
 
-    # 5. Save AI response
+    # Save AI response (encrypted at rest)
     ai_message = {
         "role": "ai",
-        "content": ai_reply,
+        "content": encrypt_field(ai_reply),
         "timestamp": datetime.utcnow(),
         "workspace_id": workspace_id,
         "user_id": "maia",
     }
+    if caso_id:
+        ai_message["caso_id"] = caso_id
     await collection.insert_one(ai_message)
 
     return ai_reply
 
 
+async def send_message_stream(
+    db: AsyncIOMotorDatabase,
+    message: str,
+    ai_provider: AIProvider,
+    workspace_id: str,
+    user_id: str,
+    caso_id: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
+    """
+    Process a user message with streaming:
+    1. Prepare context (save user msg, load history, RAG)
+    2. Stream AI response token-by-token
+    3. Save full AI response after streaming completes
+    """
+    collection, context, full_prompt, rag_chunks, legal_chunks = await _prepare_chat_context(
+        db, message, workspace_id, user_id, caso_id
+    )
+
+    full_reply = ""
+    async for chunk in ai_provider.generate_stream(
+        full_prompt, context, rag_context=rag_chunks, legal_context=legal_chunks
+    ):
+        full_reply += chunk
+        yield chunk
+
+    # Save full AI response after streaming (encrypted at rest)
+    ai_message = {
+        "role": "ai",
+        "content": encrypt_field(full_reply),
+        "timestamp": datetime.utcnow(),
+        "workspace_id": workspace_id,
+        "user_id": "maia",
+    }
+    if caso_id:
+        ai_message["caso_id"] = caso_id
+    await collection.insert_one(ai_message)
+
+
 async def clear_chat_history(
     db: AsyncIOMotorDatabase,
     workspace_id: str,
+    caso_id: Optional[str] = None,
 ) -> int:
-    collection = db[COLLECTION_NAME]
-    result = await collection.delete_many({"workspace_id": workspace_id})
+    query = {"workspace_id": workspace_id}
+    if caso_id:
+        query["caso_id"] = caso_id
+    else:
+        query["caso_id"] = {"$exists": False}
+    result = await db[COLLECTION_NAME].delete_many(query)
     return result.deleted_count

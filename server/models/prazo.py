@@ -27,6 +27,7 @@ class PrazoCreateRequest(BaseModel):
     caso_id: Optional[str] = None
     prioridade: PrazoPrioridade = PrazoPrioridade.MEDIA
     status: PrazoStatus = PrazoStatus.PENDENTE
+    notified: bool = False
 
 
 class PrazoUpdateRequest(BaseModel):
@@ -36,6 +37,7 @@ class PrazoUpdateRequest(BaseModel):
     caso_id: Optional[str] = None
     prioridade: Optional[PrazoPrioridade] = None
     status: Optional[PrazoStatus] = None
+    notified: Optional[bool] = None
 
 
 class PrazoResponse(BaseModel):
@@ -48,5 +50,6 @@ class PrazoResponse(BaseModel):
     prioridade: str
     status: str
     workspace_id: str
+    notified: bool = False
     created_at: str
     updated_at: str

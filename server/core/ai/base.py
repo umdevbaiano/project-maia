@@ -4,6 +4,7 @@ Abstract base that all AI providers must implement.
 Enables Provider Pattern for swapping AI backends (RF-42, RNF-09).
 """
 from abc import ABC, abstractmethod
+from typing import AsyncGenerator
 
 
 class AIProvider(ABC):
@@ -30,6 +31,21 @@ class AIProvider(ABC):
             The AI-generated response text.
         """
         ...
+
+    @abstractmethod
+    async def generate_stream(
+        self,
+        prompt: str,
+        context: list[dict] | None = None,
+        rag_context: list[str] | None = None,
+        legal_context: list[str] | None = None,
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream a response token-by-token from the AI model.
+        Yields string chunks as they become available.
+        """
+        ...
+        yield ""  # type: ignore
 
     @abstractmethod
     def get_model_name(self) -> str:

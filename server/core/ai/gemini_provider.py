@@ -3,7 +3,7 @@ Maia Platform — Google Gemini AI Provider
 Implementation of AIProvider using Google Generative AI SDK.
 Integrates RAG context and anti-hallucination instructions (RF-41).
 """
-from typing import Optional
+from typing import Optional, AsyncGenerator
 
 import google.generativeai as genai
 from core.ai.base import AIProvider
@@ -36,10 +36,24 @@ MAIA_SYSTEM_PROMPT = """Você é **Maia**, assistente jurídica especializada em
 - Mencione se existe divergência entre tribunais
 
 ### Formato de Resposta
-- Seja objetiva e técnica
-- Use linguagem jurídica adequada
-- Estruture respostas longas com tópicos e subtópicos
+- SEMPRE formate respostas em **Markdown**
+- Use **negrito** para termos importantes e nomes de leis
+- Use `##` e `###` para organizar seções em respostas longas
+- Use listas numeradas para passos processuais
+- Use listas com marcadores para enumerar requisitos ou fundamentos
+- Use tabelas quando comparar prazos, valores ou alternativas
+- Use `>` blockquotes para citar artigos de lei na íntegra
+- Use `---` para separar seções
 - Para peças jurídicas, siga a estrutura processual correta
+
+### Onboarding Proativo
+- Se o advogado fizer uma pergunta GENÉRICA sem contexto suficiente, PERGUNTE:
+  "Para te ajudar melhor, preciso entender alguns pontos:
+  1. [pergunta específica sobre o caso]
+  2. [pergunta sobre a jurisdição/tribunal]
+  3. [pergunta sobre o objetivo]"
+- Se o advogado não tiver processos cadastrados, sugira cadastrar
+- Se detectar padrão de uso, ofereça atalhos e dicas
 
 ### Atuação
 - Pesquisa jurídica e fundamentação legal
@@ -74,6 +88,35 @@ class GeminiProvider(AIProvider):
             genai.configure(api_key=api_key)
             self._model = genai.GenerativeModel(model_name)
 
+    def _build_prompt(
+        self,
+        prompt: str,
+        context: Optional[list[dict]] = None,
+        rag_context: Optional[list[str]] = None,
+        legal_context: Optional[list[str]] = None,
+    ) -> str:
+        """Build the full prompt with system instructions, RAG, and history."""
+        full_prompt = f"{MAIA_SYSTEM_PROMPT}\n\n"
+
+        if legal_context:
+            full_prompt += RAG_LEGAL_INSTRUCTION
+            for i, chunk in enumerate(legal_context, 1):
+                full_prompt += f"--- Artigo {i} ---\n{chunk}\n\n"
+
+        if rag_context:
+            full_prompt += RAG_DOCS_INSTRUCTION
+            for i, chunk in enumerate(rag_context, 1):
+                full_prompt += f"--- Trecho {i} ---\n{chunk}\n\n"
+
+        if context:
+            full_prompt += "Histórico da conversa:\n"
+            for msg in context[-5:]:
+                role_label = "Advogado" if msg.get("role") == "user" else "Maia"
+                full_prompt += f"{role_label}: {msg.get('content', '')}\n"
+
+        full_prompt += f"\nAdvogado: {prompt}\nMaia:"
+        return full_prompt
+
     async def generate(
         self,
         prompt: str,
@@ -86,29 +129,7 @@ class GeminiProvider(AIProvider):
             return "⚠️ AI not configured. Please set GEMINI_API_KEY environment variable."
 
         try:
-            full_prompt = f"{MAIA_SYSTEM_PROMPT}\n\n"
-
-            # Inject legal base context (legislation)
-            if legal_context:
-                full_prompt += RAG_LEGAL_INSTRUCTION
-                for i, chunk in enumerate(legal_context, 1):
-                    full_prompt += f"--- Artigo {i} ---\n{chunk}\n\n"
-
-            # Inject workspace document context
-            if rag_context:
-                full_prompt += RAG_DOCS_INSTRUCTION
-                for i, chunk in enumerate(rag_context, 1):
-                    full_prompt += f"--- Trecho {i} ---\n{chunk}\n\n"
-
-            # Add conversation history
-            if context:
-                full_prompt += "Histórico da conversa:\n"
-                for msg in context[-5:]:
-                    role_label = "Advogado" if msg.get("role") == "user" else "Maia"
-                    full_prompt += f"{role_label}: {msg.get('content', '')}\n"
-
-            full_prompt += f"\nAdvogado: {prompt}\nMaia:"
-
+            full_prompt = self._build_prompt(prompt, context, rag_context, legal_context)
             response = self._model.generate_content(full_prompt)
             return response.text
 
@@ -117,7 +138,34 @@ class GeminiProvider(AIProvider):
             error_msg = str(e)
             if "429" in error_msg or "quota" in error_msg.lower():
                 return "⚠️ Maia está temporariamente indisponível (limite de requisições da API atingido). Tente novamente em alguns segundos."
-            return f"⚠️ Erro ao processar sua solicitação. Tente novamente."
+            return "⚠️ Erro ao processar sua solicitação. Tente novamente."
+
+    async def generate_stream(
+        self,
+        prompt: str,
+        context: Optional[list[dict]] = None,
+        rag_context: Optional[list[str]] = None,
+        legal_context: Optional[list[str]] = None,
+    ) -> AsyncGenerator[str, None]:
+        """Stream a response token-by-token using Gemini's streaming API."""
+        if not self._model:
+            yield "⚠️ AI not configured. Please set GEMINI_API_KEY environment variable."
+            return
+
+        try:
+            full_prompt = self._build_prompt(prompt, context, rag_context, legal_context)
+            response = self._model.generate_content(full_prompt, stream=True)
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+
+        except Exception as e:
+            print(f"Error streaming Gemini response: {e}")
+            error_msg = str(e)
+            if "429" in error_msg or "quota" in error_msg.lower():
+                yield "⚠️ Maia está temporariamente indisponível."
+            else:
+                yield "⚠️ Erro ao processar sua solicitação."
 
     def get_model_name(self) -> str:
         return self._model_name

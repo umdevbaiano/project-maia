@@ -3,7 +3,7 @@ Maia Platform — Case (Processo) Models
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 from enum import Enum
 
 
@@ -60,6 +60,12 @@ class CasoResponse(BaseModel):
     tribunal: Optional[str] = None
     vara: Optional[str] = None
     descricao: Optional[str] = None
+    # Datajud enrichment fields
+    classe_processual: Optional[str] = None
+    orgao_julgador: Optional[str] = None
+    data_ajuizamento: Optional[str] = None
+    assuntos: Optional[list[str]] = None
+    dados_tribunal: Optional[dict[str, Any]] = None
     workspace_id: str
     created_at: str
     updated_at: str
