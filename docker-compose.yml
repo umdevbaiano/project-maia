@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   # MongoDB Database
   mongodb:
     image: mongo:7.0
-    container_name: vettalaw-mongodb
+    container_name: maia-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -13,33 +11,47 @@ services:
     environment:
       - MONGO_INITDB_DATABASE=vettalaw
     networks:
-      - vettalaw-network
+      - maia-network
+
+  # ChromaDB Vector Store (RAG)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: maia-chromadb
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - maia-network
 
   # FastAPI Backend
   backend:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: vettalaw-backend
+    container_name: maia-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - MONGODB_URL=mongodb://mongodb:27017
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - CHROMA_URL=http://chromadb:8000
     depends_on:
       - mongodb
+      - chromadb
     volumes:
       - ./server:/app
     networks:
-      - vettalaw-network
+      - maia-network
 
   # React Frontend
   frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: vettalaw-frontend
+    container_name: maia-frontend
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -49,14 +61,16 @@ services:
       - ./client:/app
       - /app/node_modules
     networks:
-      - vettalaw-network
+      - maia-network
     depends_on:
       - backend
 
 networks:
-  vettalaw-network:
+  maia-network:
     driver: bridge
 
 volumes:
   mongodb_data:
+    driver: local
+  chroma_data:
     driver: local

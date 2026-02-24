@@ -1,0 +1,126 @@
+"""
+Maia Platform — Google Gemini AI Provider
+Implementation of AIProvider using Google Generative AI SDK.
+Integrates RAG context and anti-hallucination instructions (RF-41).
+"""
+from typing import Optional
+
+import google.generativeai as genai
+from core.ai.base import AIProvider
+
+
+MAIA_SYSTEM_PROMPT = """Você é **Maia**, assistente jurídica especializada em Direito brasileiro.
+
+## REGRAS OBRIGATÓRIAS
+
+### Citação de Fontes
+- SEMPRE cite a fonte legal no formato: "Art. X, § Y, inciso Z da Lei nº N/AAAA"
+- Para súmulas: "Súmula nº X do STF/STJ/TST"
+- Para jurisprudência: "REsp nº X / Tribunal / Data"
+- NUNCA invente número de artigo, súmula ou lei
+
+### Anti-Alucinação
+- Se não tiver base legal suficiente para responder, diga EXPLICITAMENTE:
+  "⚠️ Não possuo base legal suficiente para afirmar isso com segurança. Recomendo consultar [fonte específica]."
+- NUNCA fabricar artigos de lei, súmulas ou decisões judiciais
+- Se tiver dúvida sobre um número de artigo, diga: "verificar no texto da lei"
+
+### Prioridade de Fontes
+1. 📄 Documentos do escritório (se fornecidos)
+2. 📚 Legislação brasileira (base indexada)
+3. 🧠 Conhecimento geral (usar com cautela, sempre sinalizar)
+
+### Diferenciação
+- Diferencie claramente: texto legal × doutrina × jurisprudência
+- Indique quando algo é posição majoritária vs. minoritária
+- Mencione se existe divergência entre tribunais
+
+### Formato de Resposta
+- Seja objetiva e técnica
+- Use linguagem jurídica adequada
+- Estruture respostas longas com tópicos e subtópicos
+- Para peças jurídicas, siga a estrutura processual correta
+
+### Atuação
+- Pesquisa jurídica e fundamentação legal
+- Análise de casos e estratégia processual
+- Redação de peças processuais (petições, contestações, recursos)
+- Cálculo e acompanhamento de prazos processuais
+- Análise de contratos e documentos jurídicos"""
+
+RAG_LEGAL_INSTRUCTION = (
+    "\n\n📚 LEGISLAÇÃO BRASILEIRA (BASE INDEXADA):\n"
+    "Os artigos abaixo foram extraídos diretamente da legislação federal brasileira. "
+    "Use-os como fonte primária e cite-os textualmente quando relevantes.\n\n"
+)
+
+RAG_DOCS_INSTRUCTION = (
+    "\n\n📄 DOCUMENTOS DO ESCRITÓRIO:\n"
+    "Os trechos abaixo foram extraídos de documentos enviados pelo advogado. "
+    "Base sua resposta PRIORITARIAMENTE nestes documentos quando relevantes. "
+    "Se a informação solicitada não constar nos documentos, declare isso claramente.\n\n"
+)
+
+
+class GeminiProvider(AIProvider):
+    """Google Gemini AI provider."""
+
+    def __init__(self, api_key: str, model_name: str = "gemini-3-flash-preview"):
+        self._api_key = api_key
+        self._model_name = model_name
+        self._model: Optional[genai.GenerativeModel] = None
+
+        if api_key:
+            genai.configure(api_key=api_key)
+            self._model = genai.GenerativeModel(model_name)
+
+    async def generate(
+        self,
+        prompt: str,
+        context: Optional[list[dict]] = None,
+        rag_context: Optional[list[str]] = None,
+        legal_context: Optional[list[str]] = None,
+    ) -> str:
+        """Generate a response using Google Gemini with optional RAG context."""
+        if not self._model:
+            return "⚠️ AI not configured. Please set GEMINI_API_KEY environment variable."
+
+        try:
+            full_prompt = f"{MAIA_SYSTEM_PROMPT}\n\n"
+
+            # Inject legal base context (legislation)
+            if legal_context:
+                full_prompt += RAG_LEGAL_INSTRUCTION
+                for i, chunk in enumerate(legal_context, 1):
+                    full_prompt += f"--- Artigo {i} ---\n{chunk}\n\n"
+
+            # Inject workspace document context
+            if rag_context:
+                full_prompt += RAG_DOCS_INSTRUCTION
+                for i, chunk in enumerate(rag_context, 1):
+                    full_prompt += f"--- Trecho {i} ---\n{chunk}\n\n"
+
+            # Add conversation history
+            if context:
+                full_prompt += "Histórico da conversa:\n"
+                for msg in context[-5:]:
+                    role_label = "Advogado" if msg.get("role") == "user" else "Maia"
+                    full_prompt += f"{role_label}: {msg.get('content', '')}\n"
+
+            full_prompt += f"\nAdvogado: {prompt}\nMaia:"
+
+            response = self._model.generate_content(full_prompt)
+            return response.text
+
+        except Exception as e:
+            print(f"Error generating Gemini response: {e}")
+            error_msg = str(e)
+            if "429" in error_msg or "quota" in error_msg.lower():
+                return "⚠️ Maia está temporariamente indisponível (limite de requisições da API atingido). Tente novamente em alguns segundos."
+            return f"⚠️ Erro ao processar sua solicitação. Tente novamente."
+
+    def get_model_name(self) -> str:
+        return self._model_name
+
+    def is_configured(self) -> bool:
+        return self._model is not None

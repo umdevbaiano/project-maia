@@ -1,224 +1,168 @@
-import React from 'react';
-import { FileText, AlertCircle, Users, TrendingUp, Calendar, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Briefcase, Users, FileText, Clock, AlertTriangle, TrendingUp, Scale, ArrowRight, Loader2 } from 'lucide-react';
+import api from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
+
+interface DashboardData {
+  casos_count: number;
+  clientes_count: number;
+  documentos_count: number;
+  prazos_pendentes: number;
+  overdue: any[];
+  upcoming: any[];
+  recent_casos: any[];
+}
 
 const DashboardPage: React.FC = () => {
-  const kpiData = [
-    {
-      title: 'Processos Ativos',
-      value: '12',
-      icon: FileText,
-      color: 'bg-blue-600',
-      trend: '+2 este mês',
-    },
-    {
-      title: 'Prazos Urgentes',
-      value: '3',
-      icon: AlertCircle,
-      color: 'bg-red-600',
-      trend: 'Próximos 7 dias',
-    },
-    {
-      title: 'Novos Clientes',
-      value: '8',
-      icon: Users,
-      color: 'bg-green-600',
-      trend: '+3 este mês',
-    },
-    {
-      title: 'Taxa de Sucesso',
-      value: '87%',
-      icon: TrendingUp,
-      color: 'bg-purple-600',
-      trend: '+5% vs. mês anterior',
-    },
+  const { user } = useAuth();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const [casosRes, clientesRes, docsRes, alertsRes] = await Promise.all([
+          api.get('/casos'),
+          api.get('/clientes'),
+          api.get('/documents'),
+          api.get('/prazos/alerts'),
+        ]);
+        setData({
+          casos_count: casosRes.data.casos?.length || 0,
+          clientes_count: clientesRes.data.clientes?.length || 0,
+          documentos_count: docsRes.data.documents?.length || 0,
+          prazos_pendentes: (alertsRes.data.overdue_count || 0) + (alertsRes.data.upcoming_count || 0),
+          overdue: alertsRes.data.overdue || [],
+          upcoming: alertsRes.data.upcoming || [],
+          recent_casos: (casosRes.data.casos || []).slice(0, 5),
+        });
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    };
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  const stats = [
+    { label: 'Processos', value: data?.casos_count || 0, icon: Briefcase, color: 'blue', link: '/casos' },
+    { label: 'Clientes', value: data?.clientes_count || 0, icon: Users, color: 'purple', link: '/clientes' },
+    { label: 'Documentos', value: data?.documentos_count || 0, icon: FileText, color: 'emerald', link: '/documentos' },
+    { label: 'Prazos Pendentes', value: data?.prazos_pendentes || 0, icon: Clock, color: 'orange', link: '/prazos' },
   ];
 
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      title: 'Contestação - Processo 1234/2024',
-      client: 'João Silva',
-      date: '2024-02-15',
-      priority: 'high',
-    },
-    {
-      id: 2,
-      title: 'Recurso - Processo 5678/2024',
-      client: 'Maria Santos',
-      date: '2024-02-18',
-      priority: 'high',
-    },
-    {
-      id: 3,
-      title: 'Petição Inicial - Processo 9012/2024',
-      client: 'Pedro Oliveira',
-      date: '2024-02-22',
-      priority: 'medium',
-    },
-    {
-      id: 4,
-      title: 'Audiência - Processo 3456/2024',
-      client: 'Ana Costa',
-      date: '2024-02-25',
-      priority: 'medium',
-    },
-  ];
-
-  const recentActivity = [
-    {
-      id: 1,
-      action: 'Novo processo cadastrado',
-      details: 'Processo 7890/2024 - Ação Trabalhista',
-      time: 'Há 2 horas',
-    },
-    {
-      id: 2,
-      action: 'Documento atualizado',
-      details: 'Contrato de Prestação de Serviços - Cliente XYZ',
-      time: 'Há 5 horas',
-    },
-    {
-      id: 3,
-      action: 'Reunião agendada',
-      details: 'Consulta com João Silva - 16/02/2024 às 14h',
-      time: 'Há 1 dia',
-    },
-  ];
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'text-red-500 bg-red-500/10 border-red-500/20';
-      case 'medium':
-        return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
-      case 'low':
-        return 'text-green-500 bg-green-500/10 border-green-500/20';
-      default:
-        return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/20';
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'Alta';
-      case 'medium':
-        return 'Média';
-      case 'low':
-        return 'Baixa';
-      default:
-        return 'Normal';
-    }
+  const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
+    blue: { bg: 'bg-blue-500/10', icon: 'text-blue-400', border: 'border-blue-500/20' },
+    purple: { bg: 'bg-purple-500/10', icon: 'text-purple-400', border: 'border-purple-500/20' },
+    emerald: { bg: 'bg-emerald-500/10', icon: 'text-emerald-400', border: 'border-emerald-500/20' },
+    orange: { bg: 'bg-orange-500/10', icon: 'text-orange-400', border: 'border-orange-500/20' },
   };
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-        <p className="text-zinc-400">Visão geral do seu escritório jurídico</p>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <Scale className="w-7 h-7 text-blue-500" />
+          Olá, {user?.name?.split(' ')[0] || 'Advogado'}
+        </h1>
+        <p className="text-zinc-400 text-sm mt-1">Visão geral do escritório</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiData.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <div key={kpi.title} className="card">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`${kpi.color} p-3 rounded-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <h3 className="text-zinc-400 text-sm font-medium mb-1">{kpi.title}</h3>
-              <p className="text-3xl font-bold text-white mb-2">{kpi.value}</p>
-              <p className="text-xs text-zinc-500">{kpi.trend}</p>
+      {/* Overdue Alert */}
+      {data && data.overdue.length > 0 && (
+        <Link to="/prazos" className="block mb-6">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 hover:bg-red-500/15 transition-all">
+            <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-red-400 font-medium">⚠️ {data.overdue.length} prazo(s) vencido(s)!</p>
+              <p className="text-red-400/70 text-sm">{data.overdue.map((p: any) => p.titulo).join(', ')}</p>
             </div>
+            <ArrowRight className="w-5 h-5 text-red-400" />
+          </div>
+        </Link>
+      )}
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stats.map(stat => {
+          const Icon = stat.icon;
+          const colors = colorMap[stat.color];
+          return (
+            <Link key={stat.label} to={stat.link}
+              className={`${colors.bg} border ${colors.border} rounded-xl p-5 hover:scale-[1.02] transition-all`}>
+              <div className="flex items-center justify-between mb-3">
+                <Icon className={`w-6 h-6 ${colors.icon}`} />
+                <TrendingUp className={`w-4 h-4 ${colors.icon} opacity-50`} />
+              </div>
+              <p className="text-3xl font-bold text-white">{stat.value}</p>
+              <p className="text-zinc-400 text-sm mt-1">{stat.label}</p>
+            </Link>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Deadlines */}
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              Prazos Próximos
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-orange-400" /> Próximos Prazos
             </h2>
+            <Link to="/prazos" className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1">Ver todos <ArrowRight className="w-4 h-4" /></Link>
           </div>
-          <div className="space-y-3">
-            {upcomingDeadlines.map((deadline) => (
-              <div
-                key={deadline.id}
-                className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-medium text-sm">{deadline.title}</h3>
-                  <span
-                    className={`text-xs px-2 py-1 rounded border ${getPriorityColor(
-                      deadline.priority
-                    )}`}
-                  >
-                    {getPriorityLabel(deadline.priority)}
+          {data && data.upcoming.length > 0 ? (
+            <div className="space-y-3">
+              {data.upcoming.slice(0, 5).map((prazo: any) => (
+                <div key={prazo.id} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
+                  <div>
+                    <p className="text-sm text-white font-medium">{prazo.titulo}</p>
+                    {prazo.caso_titulo && <p className="text-xs text-zinc-500">📁 {prazo.caso_titulo}</p>}
+                  </div>
+                  <span className="text-xs text-orange-400 font-medium whitespace-nowrap">
+                    📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-400">
-                  <span className="flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    {deadline.client}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {new Date(deadline.date).toLocaleDateString('pt-BR')}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-zinc-500 text-sm py-4 text-center">Nenhum prazo próximo.</p>
+          )}
         </div>
 
-        {/* Recent Activity */}
-        <div className="card">
-          <h2 className="text-xl font-bold text-white mb-6">Atividade Recente</h2>
-          <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="border-l-2 border-blue-600 pl-4">
-                <h3 className="text-white font-medium text-sm mb-1">{activity.action}</h3>
-                <p className="text-zinc-400 text-xs mb-2">{activity.details}</p>
-                <span className="text-zinc-500 text-xs">{activity.time}</span>
-              </div>
-            ))}
+        {/* Recent Cases */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-blue-400" /> Processos Recentes
+            </h2>
+            <Link to="/casos" className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1">Ver todos <ArrowRight className="w-4 h-4" /></Link>
           </div>
-        </div>
-      </div>
-
-      {/* Simple Chart Visualization */}
-      <div className="card">
-        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-blue-600" />
-          Evolução de Casos (Últimos 6 Meses)
-        </h2>
-        <div className="h-64 flex items-end justify-between gap-4">
-          {[45, 52, 48, 61, 58, 65].map((value, index) => {
-            const months = ['Set', 'Out', 'Nov', 'Dez', 'Jan', 'Fev'];
-            const height = (value / 70) * 100;
-
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                <div className="relative w-full">
-                  <div
-                    className="bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all hover:from-blue-500 hover:to-blue-300"
-                    style={{ height: `${height}%` }}
-                  />
-                  <span className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-white">
-                    {value}
-                  </span>
+          {data && data.recent_casos.length > 0 ? (
+            <div className="space-y-3">
+              {data.recent_casos.map((caso: any) => (
+                <div key={caso.id} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
+                  <div>
+                    <p className="text-sm text-white font-medium">{caso.titulo}</p>
+                    <p className="text-xs text-zinc-500 font-mono">{caso.numero}</p>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${caso.status === 'em_andamento' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                      caso.status === 'ativo' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                        'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                    }`}>{caso.status}</span>
                 </div>
-                <span className="text-xs text-zinc-400 mt-2">{months[index]}</span>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ) : (
+            <p className="text-zinc-500 text-sm py-4 text-center">Nenhum processo cadastrado.</p>
+          )}
         </div>
       </div>
     </div>
