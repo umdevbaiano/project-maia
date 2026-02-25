@@ -43,5 +43,13 @@ class PecaResponse(BaseModel):
     conteudo: str
     caso_id: Optional[str] = None
     caso_titulo: Optional[str] = None
+    cliente_id: Optional[str] = None
+    cliente_nome: Optional[str] = None
     workspace_id: str
     created_at: str
+
+
+class PecaUpdateRequest(BaseModel):
+    conteudo: Optional[str] = None
+    caso_id: Optional[str] = None
+    cliente_id: Optional[str] = None

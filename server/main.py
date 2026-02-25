@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     await connect_db()
     
     # Initialize AI Provider
-    ai_provider = get_ai_provider()
+    get_ai_provider()
     print("🤖 AI Provider initialized")
     print("🚀 Maia Platform API is ready!")
 
@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Content-Disposition"]
     )
 
     # Routers

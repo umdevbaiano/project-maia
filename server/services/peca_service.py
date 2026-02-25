@@ -2,6 +2,7 @@
 Maia Platform — Peça Jurídica Service
 AI-powered legal document generation with RAG context.
 """
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -178,8 +179,38 @@ REGRAS:
         prompt, context=None, rag_context=rag_chunks, legal_context=legal_chunks
     )
 
+    # 4.1 Strip Agentic Action tags and conversational prefixes
+    payload_match = re.search(r'\[INICIO_PECA\](.*?)\[FIM_PECA\]', conteudo, re.DOTALL)
+    if payload_match:
+        conteudo = payload_match.group(1).strip()
+    
+    conteudo = re.sub(r'<!--\s*MAIA_SAVE:\s*.*?\s*-->', '', conteudo).strip()
+    conteudo = conteudo.replace('[INICIO_PECA]', '').replace('[FIM_PECA]', '').strip()
+
     # 5. Save to MongoDB (encrypt sensitive fields)
     titulo = f"{tipo_label} — {caso_titulo or instrucoes[:50]}"
+    cliente_id = caso.get("cliente_id") if caso_id and caso else None
+    cliente_nome = cliente.get('nome') if caso_id and caso and cliente else None
+    
+    return await save_peca_direct(
+        db, workspace_id, user_id, tipo, titulo, conteudo, instrucoes, caso_id, caso_titulo, cliente_id, cliente_nome
+    )
+
+
+async def save_peca_direct(
+    db: AsyncIOMotorDatabase,
+    workspace_id: str,
+    user_id: str,
+    tipo: TipoPeca,
+    titulo: str,
+    conteudo: str,
+    instrucoes: str = "Gerado via Chat",
+    caso_id: Optional[str] = None,
+    caso_titulo: Optional[str] = None,
+    cliente_id: Optional[str] = None,
+    cliente_nome: Optional[str] = None,
+) -> dict:
+    """Save a pre-generated document directly into the database."""
     doc = {
         "tipo": tipo.value,
         "titulo": titulo,
@@ -187,13 +218,14 @@ REGRAS:
         "instrucoes": encrypt_field(instrucoes),
         "caso_id": caso_id,
         "caso_titulo": caso_titulo,
+        "cliente_id": cliente_id,
+        "cliente_nome": cliente_nome,
         "workspace_id": workspace_id,
         "user_id": user_id,
         "created_at": datetime.utcnow(),
     }
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
-
     return _serialize(doc)
 
 
@@ -214,3 +246,49 @@ async def get_peca(db: AsyncIOMotorDatabase, peca_id: str, workspace_id: str) ->
 async def delete_peca(db: AsyncIOMotorDatabase, peca_id: str, workspace_id: str) -> bool:
     result = await db[COLLECTION].delete_one({"_id": ObjectId(peca_id), "workspace_id": workspace_id})
     return result.deleted_count > 0
+
+async def update_peca(db: AsyncIOMotorDatabase, peca_id: str, workspace_id: str, update_data: dict) -> Optional[dict]:
+    # Sanitize and resolve relations
+    doc_updates = {}
+    
+    if "conteudo" in update_data and update_data["conteudo"] is not None:
+        doc_updates["conteudo"] = encrypt_field(update_data["conteudo"])
+        
+    if "caso_id" in update_data:
+        caso_id = update_data["caso_id"]
+        if caso_id:
+            caso = await db["casos"].find_one({"_id": ObjectId(caso_id), "workspace_id": workspace_id})
+            if caso:
+                doc_updates["caso_id"] = caso_id
+                doc_updates["caso_titulo"] = caso.get("titulo", "")
+                if caso.get("cliente_id"):
+                    doc_updates["cliente_id"] = caso["cliente_id"]
+                    cliente = await db["clientes"].find_one({"_id": ObjectId(caso["cliente_id"])})
+                    if cliente:
+                        doc_updates["cliente_nome"] = cliente.get("nome", "")
+        else:
+            doc_updates["caso_id"] = None
+            doc_updates["caso_titulo"] = None
+
+    if "cliente_id" in update_data:
+        cliente_id = update_data["cliente_id"]
+        if cliente_id:
+            cliente = await db["clientes"].find_one({"_id": ObjectId(cliente_id), "workspace_id": workspace_id})
+            if cliente:
+                doc_updates["cliente_id"] = cliente_id
+                doc_updates["cliente_nome"] = cliente.get("nome", "")
+        else:
+            doc_updates["cliente_id"] = None
+            doc_updates["cliente_nome"] = None
+
+    if not doc_updates:
+        return await get_peca(db, peca_id, workspace_id)
+
+    updated = await db[COLLECTION].find_one_and_update(
+        {"_id": ObjectId(peca_id), "workspace_id": workspace_id},
+        {"$set": doc_updates},
+        return_document=True
+    )
+    if not updated:
+        return None
+    return _serialize(updated)

@@ -45,7 +45,7 @@ const JurisprudenciaPage = () => {
             case 'STF': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
             case 'STJ': return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
             case 'TST': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-            default: return 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20';
+            default: return 'text-gray-500 dark:text-zinc-400 bg-gray-200/50 dark:bg-zinc-400/10 border-gray-300 dark:border-zinc-400/20';
         }
     };
 
@@ -57,27 +57,27 @@ const JurisprudenciaPage = () => {
                     <Scale className="w-7 h-7 text-violet-400" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Busca Jurisprudencial</h1>
-                    <p className="text-zinc-400 text-sm">Pesquise decisões do STF e STJ</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Busca Jurisprudencial</h1>
+                    <p className="text-gray-500 dark:text-zinc-400 text-sm">Pesquise decisões do STF e STJ</p>
                 </div>
             </div>
 
             {/* Search Form */}
             <form onSubmit={handleSearch} className="flex gap-3 mb-8">
                 <div className="relative flex-1">
-                    <Search className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <Search className="w-5 h-5 text-gray-400 dark:text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
                     <input
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Ex: dano moral, legítima defesa, usucapião..."
-                        className="w-full pl-12 pr-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                        className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-colors"
                     />
                 </div>
                 <select
                     value={tribunal}
                     onChange={(e) => setTribunal(e.target.value)}
-                    className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-sm appearance-none cursor-pointer min-w-[120px] focus:outline-none focus:border-violet-500"
+                    className="px-4 py-3 bg-white dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-xl text-gray-900 dark:text-white text-sm appearance-none cursor-pointer min-w-[120px] focus:outline-none focus:ring-2 focus:ring-violet-500/50"
                 >
                     <option value="">Todos</option>
                     <option value="STF">STF</option>
@@ -97,24 +97,24 @@ const JurisprudenciaPage = () => {
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3">
                     <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-                    <p className="text-zinc-500 text-sm">Buscando nos tribunais...</p>
+                    <p className="text-gray-500 dark:text-zinc-500 text-sm">Buscando nos tribunais...</p>
                 </div>
             ) : searched && results.length === 0 ? (
-                <div className="text-center py-20 text-zinc-500">
+                <div className="text-center py-20 text-gray-500 dark:text-zinc-500">
                     <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p>Nenhuma decisão encontrada para "{query}".</p>
                     <p className="text-xs mt-1">Tente termos mais específicos ou outro tribunal.</p>
                 </div>
             ) : results.length > 0 ? (
                 <>
-                    <p className="text-sm text-zinc-500 mb-4">
+                    <p className="text-sm text-gray-500 dark:text-zinc-500 mb-4">
                         {total > 0 ? `${total} resultado(s) encontrado(s)` : `${results.length} resultado(s)`}
                     </p>
                     <div className="space-y-4">
                         {results.map((r, i) => (
                             <div
                                 key={i}
-                                className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors"
+                                className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 hover:border-gray-300 dark:hover:border-zinc-700 transition-colors"
                             >
                                 <div className="flex items-start justify-between gap-4 mb-3">
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -122,10 +122,10 @@ const JurisprudenciaPage = () => {
                                             {r.tribunal}
                                         </span>
                                         {r.processo && (
-                                            <span className="text-xs text-zinc-400 font-mono">{r.processo}</span>
+                                            <span className="text-xs text-gray-500 dark:text-zinc-400 font-mono">{r.processo}</span>
                                         )}
                                         {r.data && (
-                                            <span className="text-xs text-zinc-500">{r.data}</span>
+                                            <span className="text-xs text-gray-500 dark:text-zinc-500">{r.data}</span>
                                         )}
                                     </div>
                                     {r.url && (
@@ -140,15 +140,15 @@ const JurisprudenciaPage = () => {
                                     )}
                                 </div>
                                 {r.titulo && (
-                                    <h3 className="text-sm font-semibold text-white mb-2">{r.titulo}</h3>
+                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{r.titulo}</h3>
                                 )}
                                 {r.ementa && (
-                                    <p className="text-sm text-zinc-400 leading-relaxed line-clamp-4">
+                                    <p className="text-sm text-gray-600 dark:text-zinc-400 leading-relaxed line-clamp-4">
                                         {r.ementa}
                                     </p>
                                 )}
                                 {r.relator && (
-                                    <p className="text-xs text-zinc-500 mt-2">
+                                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-2">
                                         Relator: {r.relator}
                                     </p>
                                 )}
@@ -157,7 +157,7 @@ const JurisprudenciaPage = () => {
                     </div>
                 </>
             ) : !searched ? (
-                <div className="text-center py-20 text-zinc-500">
+                <div className="text-center py-20 text-gray-500 dark:text-zinc-500">
                     <Scale className="w-16 h-16 mx-auto mb-4 opacity-20" />
                     <p className="text-lg">Pesquise jurisprudência nos tribunais superiores</p>
                     <p className="text-xs mt-2">Digite um tema ou termo jurídico para buscar decisões relevantes</p>

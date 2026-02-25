@@ -5,5 +5,7 @@ export interface Documento {
     size_bytes: number;
     chunk_count: number;
     uploaded_by: string;
+    cliente_id?: string;
+    caso_id?: string;
     created_at: string;
 }

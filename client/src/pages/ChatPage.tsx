@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Send, Loader2, Trash2, ArrowLeft } from 'lucide-react';
+import { Send, Loader2, Trash2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { chatApi } from '../utils/api';
 import type { ChatMessage } from '../types/chat';
@@ -163,8 +163,8 @@ const ChatPage: React.FC = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <Bot className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-500/30">
+                <img src="/maia-avatar.png" alt="Maia" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Maia - Assistente Jurídica</h1>
@@ -193,7 +193,7 @@ const ChatPage: React.FC = () => {
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md p-8 rounded-3xl border border-gray-200/80 dark:border-zinc-800/80 max-w-md shadow-2xl">
-                <Bot className="w-16 h-16 mx-auto mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+                <img src="/maia-avatar.png" alt="Maia" className="w-24 h-24 mx-auto mb-6 rounded-full border-4 border-white dark:border-zinc-800 shadow-xl object-cover drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
                 <h2 className="text-2xl tracking-tight font-medium text-gray-900 dark:text-white mb-3">
                   Olá! Como posso ajudar na sua pesquisa jurídica hoje?
                 </h2>
@@ -229,8 +229,8 @@ const ChatPage: React.FC = () => {
                 >
                   {message.role === 'ai' && (
                     <div className="mr-3 mt-1">
-                      <div className="bg-blue-600 p-2 rounded-lg">
-                        <Bot className="w-5 h-5 text-white" />
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 dark:border-zinc-700 shadow-sm flex-shrink-0">
+                        <img src="/maia-avatar.png" alt="Maia" className="w-full h-full object-cover" />
                       </div>
                     </div>
                   )}

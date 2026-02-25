@@ -5,7 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from database import get_database
-from middleware import get_current_user
+from middleware import get_current_user, require_roles
+from models.user import UserRole
 from services import cliente_service, audit_service
 from models.cliente import ClienteCreateRequest, ClienteUpdateRequest, ClienteResponse
 
@@ -58,7 +59,10 @@ async def update_cliente(cliente_id: str, request: ClienteUpdateRequest, current
 
 
 @router.delete("/{cliente_id}")
-async def delete_cliente(cliente_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_cliente(
+    cliente_id: str, 
+    current_user: dict = Depends(require_roles(UserRole.ADMIN, UserRole.SOCIO))
+):
     db = get_database()
     deleted = await cliente_service.delete_cliente(db, cliente_id, current_user["_workspace_id"])
     if not deleted:

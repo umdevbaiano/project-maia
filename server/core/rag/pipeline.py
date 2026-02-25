@@ -178,11 +178,18 @@ def get_legal_collection_count() -> int:
 
 # ---------- Retrieval ----------
 
-async def retrieve(workspace_id: str, query: str, top_k: int = 3) -> list[str]:
-    """Retrieve from workspace documents only."""
+async def retrieve(workspace_id: str, query: str, top_k: int = 3, caso_id: Optional[str] = None) -> list[str]:
+    """Retrieve from workspace documents only. Optionally filter by caso_id."""
     try:
         collection = _get_workspace_collection(workspace_id)
-        results = collection.query(query_texts=[query], n_results=top_k)
+        
+        where_filter = {"caso_id": caso_id} if caso_id else None
+        
+        results = collection.query(
+            query_texts=[query], 
+            n_results=top_k,
+            where=where_filter
+        )
         return results["documents"][0] if results["documents"] else []
     except Exception as e:
         print(f"RAG retrieval error: {e}")
@@ -202,11 +209,11 @@ async def retrieve_legal(query: str, top_k: int = 5) -> list[str]:
         return []
 
 
-async def retrieve_hybrid(workspace_id: str, query: str) -> dict:
+async def retrieve_hybrid(workspace_id: str, query: str, caso_id: Optional[str] = None) -> dict:
     """
     Hybrid retrieval: legal base (top-5) + workspace docs (top-3).
     Returns {"legal": [...], "workspace": [...]}
     """
     legal = await retrieve_legal(query, top_k=5)
-    workspace = await retrieve(workspace_id, query, top_k=3)
+    workspace = await retrieve(workspace_id, query, top_k=3, caso_id=caso_id)
     return {"legal": legal, "workspace": workspace}

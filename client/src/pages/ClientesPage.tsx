@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Search, Trash2, Edit3, X, Loader2, User, Building2 } from 'lucide-react';
+import { Users, Plus, Search, Trash2, Edit3, X, Loader2, User, Building2, FileText } from 'lucide-react';
+import DocumentPanel from '../components/DocumentPanel';
 import api from '../utils/api';
 import type { Cliente, ClienteCreateRequest, TipoPessoa } from '../types/cliente';
+
+const maskDocument = (doc: string | undefined, tipo: TipoPessoa) => {
+  if (!doc) return '';
+  // Basic masking: keep last 2 digits, or first 3 + last 2
+  const clean = doc.replace(/\D/g, '');
+  if (tipo === 'fisica' && clean.length === 11) {
+    return `***.${clean.substring(3, 6)}.${clean.substring(6, 9)}-**`;
+  }
+  if (tipo === 'juridica' && clean.length === 14) {
+    return `**.***.${clean.substring(5, 8)}/****-${clean.substring(12, 14)}`;
+  }
+  return '***' + doc.slice(-4);
+};
 
 const ClientesPage: React.FC = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -11,6 +25,7 @@ const ClientesPage: React.FC = () => {
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [form, setForm] = useState<ClienteCreateRequest>({ nome: '', tipo_pessoa: 'fisica' });
   const [saving, setSaving] = useState(false);
+  const [activePanelCliente, setActivePanelCliente] = useState<{ id: string, nome: string } | null>(null);
 
   const fetch = async () => {
     try {
@@ -50,10 +65,10 @@ const ClientesPage: React.FC = () => {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <Users className="w-7 h-7 text-blue-500" /> Clientes
           </h1>
-          <p className="text-zinc-400 text-sm mt-1">{clientes.length} cliente(s)</p>
+          <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{clientes.length} cliente(s)</p>
         </div>
         <button onClick={() => { setEditing(null); setForm({ nome: '', tipo_pessoa: 'fisica' }); setShowModal(true); }}
           className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-lg shadow-blue-600/20">
@@ -62,40 +77,41 @@ const ClientesPage: React.FC = () => {
       </div>
 
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
         <input type="text" placeholder="Buscar por nome, CPF/CNPJ ou e-mail..." value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-11 pr-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600" />
+          className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg pl-11 pr-4 py-3 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent" />
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
       ) : clientes.length === 0 ? (
         <div className="text-center py-20">
-          <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-          <p className="text-zinc-500">Nenhum cliente encontrado.</p>
+          <Users className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-zinc-700" />
+          <p className="text-gray-500 dark:text-zinc-500">Nenhum cliente encontrado.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clientes.map(c => (
-            <div key={c.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-all group">
+            <div key={c.id} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 hover:border-gray-300 dark:hover:border-zinc-700 transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${c.tipo_pessoa === 'juridica' ? 'bg-purple-500/10' : 'bg-blue-500/10'}`}>
-                    {c.tipo_pessoa === 'juridica' ? <Building2 className="w-5 h-5 text-purple-400" /> : <User className="w-5 h-5 text-blue-400" />}
+                    {c.tipo_pessoa === 'juridica' ? <Building2 className="w-5 h-5 text-purple-500 dark:text-purple-400" /> : <User className="w-5 h-5 text-blue-500 dark:text-blue-400" />}
                   </div>
                   <div>
-                    <h3 className="text-white font-medium text-sm">{c.nome}</h3>
-                    <p className="text-zinc-500 text-xs">{c.tipo_pessoa === 'juridica' ? 'Pessoa Jurídica' : 'Pessoa Física'}</p>
+                    <h3 className="text-gray-900 dark:text-white font-medium text-sm">{c.nome}</h3>
+                    <p className="text-gray-500 dark:text-zinc-500 text-xs">{c.tipo_pessoa === 'juridica' ? 'Pessoa Jurídica' : 'Pessoa Física'}</p>
                   </div>
                 </div>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <button onClick={() => openEdit(c)} className="text-zinc-400 hover:text-blue-400 p-1"><Edit3 className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(c.id)} className="text-zinc-400 hover:text-red-400 p-1"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setActivePanelCliente({ id: c.id, nome: c.nome })} className="text-gray-400 hover:text-purple-500 dark:text-zinc-400 dark:hover:text-purple-400 p-1 transition-colors" title="Ver Documentos"><FileText className="w-4 h-4" /></button>
+                  <button onClick={() => openEdit(c)} className="text-gray-400 hover:text-blue-500 dark:text-zinc-400 dark:hover:text-blue-400 p-1"><Edit3 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(c.id)} className="text-gray-400 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 p-1"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
-              {c.documento && <p className="text-xs text-zinc-400 mb-1">📄 {c.documento}</p>}
-              {c.email && <p className="text-xs text-zinc-400 mb-1">✉️ {c.email}</p>}
-              {c.telefone && <p className="text-xs text-zinc-400">📞 {c.telefone}</p>}
+              {c.documento && <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1" title={c.documento}>📄 {maskDocument(c.documento, c.tipo_pessoa)}</p>}
+              {c.email && <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1">✉️ {c.email}</p>}
+              {c.telefone && <p className="text-xs text-gray-500 dark:text-zinc-400">📞 {c.telefone}</p>}
             </div>
           ))}
         </div>
@@ -104,39 +120,39 @@ const ClientesPage: React.FC = () => {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-white">{editing ? 'Editar Cliente' : 'Novo Cliente'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{editing ? 'Editar Cliente' : 'Novo Cliente'}</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm text-zinc-300 mb-1">Nome *</label>
+                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Nome *</label>
                   <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
-                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
-                <div><label className="block text-sm text-zinc-300 mb-1">Tipo</label>
+                    className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Tipo</label>
                   <select value={form.tipo_pessoa} onChange={e => setForm({ ...form, tipo_pessoa: e.target.value as TipoPessoa })}
-                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
+                    className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
                     <option value="fisica">Pessoa Física</option><option value="juridica">Pessoa Jurídica</option>
                   </select></div>
               </div>
-              <div><label className="block text-sm text-zinc-300 mb-1">{form.tipo_pessoa === 'juridica' ? 'CNPJ' : 'CPF'}</label>
+              <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">{form.tipo_pessoa === 'juridica' ? 'CNPJ' : 'CPF'}</label>
                 <input value={form.documento || ''} onChange={e => setForm({ ...form, documento: e.target.value })}
-                  className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                  className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm text-zinc-300 mb-1">E-mail</label>
+                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">E-mail</label>
                   <input value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })}
-                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
-                <div><label className="block text-sm text-zinc-300 mb-1">Telefone</label>
+                    className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Telefone</label>
                   <input value={form.telefone || ''} onChange={e => setForm({ ...form, telefone: e.target.value })}
-                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                    className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
               </div>
-              <div><label className="block text-sm text-zinc-300 mb-1">Endereço</label>
+              <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Endereço</label>
                 <input value={form.endereco || ''} onChange={e => setForm({ ...form, endereco: e.target.value })}
-                  className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                  className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2.5 rounded-lg transition-all font-medium">Cancelar</button>
+              <button onClick={() => setShowModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 py-2.5 rounded-lg transition-all font-medium">Cancelar</button>
               <button onClick={handleSave} disabled={saving || !form.nome}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : 'Salvar'}
@@ -144,8 +160,23 @@ const ClientesPage: React.FC = () => {
             </div>
           </div>
         </div>
+            </div>
+          </div >
+        </div >
       )}
-    </div>
+
+{/* Document Panel */ }
+{
+  activePanelCliente && (
+    <DocumentPanel
+      entityType="cliente"
+      entityId={activePanelCliente.id}
+      entityName={activePanelCliente.nome}
+      onClose={() => setActivePanelCliente(null)}
+    />
+  )
+}
+    </div >
   );
 };
 

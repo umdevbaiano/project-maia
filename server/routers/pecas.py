@@ -11,7 +11,7 @@ from database import get_database
 from middleware import get_current_user
 from core.ai.factory import get_ai_provider
 from core.documents.docx_generator import markdown_to_docx
-from models.peca import PecaGenerateRequest, PecaResponse
+from models.peca import PecaGenerateRequest, PecaResponse, PecaUpdateRequest
 from services import peca_service, audit_service
 
 router = APIRouter(prefix="/pecas", tags=["pecas"])
@@ -78,6 +78,24 @@ async def delete_peca(peca_id: str, current_user: dict = Depends(get_current_use
     return {"message": "Peça removida com sucesso."}
 
 
+@router.put("/{peca_id}", response_model=PecaResponse)
+async def update_peca(peca_id: str, request: PecaUpdateRequest, current_user: dict = Depends(get_current_user)):
+    """Update a legal document content or its relations."""
+    db = get_database()
+    updated = await peca_service.update_peca(
+        db, peca_id, current_user["_workspace_id"], request.model_dump(exclude_unset=True)
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Peça não encontrada.")
+    
+    await audit_service.log_action(
+        db, workspace_id=current_user["_workspace_id"], user_id=current_user["_user_id"],
+        user_email=current_user.get("email", ""), action="UPDATE", resource_type="peca",
+        resource_id=peca_id,
+    )
+    return PecaResponse(**updated)
+
+
 @router.get("/{peca_id}/download")
 async def download_peca_docx(peca_id: str, current_user: dict = Depends(get_current_user)):
     """Download a legal document as .docx."""
@@ -94,11 +112,14 @@ async def download_peca_docx(peca_id: str, current_user: dict = Depends(get_curr
 
     docx_buffer = markdown_to_docx(peca["conteudo"], titulo=peca.get("titulo", "Documento"))
     filename = f"{peca.get('titulo', 'peca').replace(' ', '_')}.docx"
+    
+    # URL encode filename to avoid Starlette Latin-1 header encoding crash
+    encoded_filename = urllib.parse.quote(filename)
 
     return StreamingResponse(
         docx_buffer,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"},
     )
 
 

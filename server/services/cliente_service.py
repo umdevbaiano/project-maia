@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from core.security.encryption import encrypt_field, decrypt_field
 
 COLLECTION = "clientes"
 
@@ -16,12 +17,26 @@ def _serialize(doc: dict) -> dict:
         for k in ("created_at", "updated_at"):
             if isinstance(doc.get(k), datetime):
                 doc[k] = doc[k].isoformat()
+        
+        # Descriptografar campos sensíveis para leitura em memória
+        for field in ["documento", "email", "telefone", "endereco", "observacoes"]:
+            if doc.get(field):
+                doc[field] = decrypt_field(doc[field])
     return doc
+
+
+def _encrypt_payload(data: dict) -> dict:
+    encrypted = data.copy()
+    for field in ["documento", "email", "telefone", "endereco", "observacoes"]:
+        if encrypted.get(field):
+            encrypted[field] = encrypt_field(str(encrypted[field]))
+    return encrypted
 
 
 async def create_cliente(db: AsyncIOMotorDatabase, data: dict, workspace_id: str) -> dict:
     now = datetime.utcnow()
-    doc = {**data, "workspace_id": workspace_id, "created_at": now, "updated_at": now}
+    secure_data = _encrypt_payload(data)
+    doc = {**secure_data, "workspace_id": workspace_id, "created_at": now, "updated_at": now}
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
     return _serialize(doc)
@@ -32,11 +47,8 @@ async def list_clientes(
 ) -> list[dict]:
     query: dict = {"workspace_id": workspace_id}
     if search:
-        query["$or"] = [
-            {"nome": {"$regex": search, "$options": "i"}},
-            {"documento": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
-        ]
+        # Busca textual restrita a `nome` devido à criptografia dos outros campos
+        query["nome"] = {"$regex": search, "$options": "i"}
     clientes = []
     async for doc in db[COLLECTION].find(query).sort("nome", 1):
         clientes.append(_serialize(doc))
@@ -55,10 +67,13 @@ async def update_cliente(db: AsyncIOMotorDatabase, cliente_id: str, workspace_id
     update_data = {k: v for k, v in data.items() if v is not None}
     if not update_data:
         return await get_cliente(db, cliente_id, workspace_id)
-    update_data["updated_at"] = datetime.utcnow()
+        
+    secure_data = _encrypt_payload(update_data)
+    secure_data["updated_at"] = datetime.utcnow()
+    
     await db[COLLECTION].update_one(
         {"_id": ObjectId(cliente_id), "workspace_id": workspace_id},
-        {"$set": update_data},
+        {"$set": secure_data},
     )
     return await get_cliente(db, cliente_id, workspace_id)
 

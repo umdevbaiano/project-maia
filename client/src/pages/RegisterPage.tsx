@@ -52,7 +52,7 @@ const RegisterPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-4">
             {/* Background gradient effects */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl" />
@@ -66,14 +66,14 @@ const RegisterPage: React.FC = () => {
                         <div className="bg-blue-600 p-3 rounded-xl shadow-lg shadow-blue-600/20">
                             <Scale className="w-8 h-8 text-white" />
                         </div>
-                        <span className="text-3xl font-bold text-white tracking-tight">MAIA</span>
+                        <span className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">MAIA</span>
                     </div>
-                    <p className="text-zinc-400 text-sm">Crie seu escritório na plataforma</p>
+                    <p className="text-gray-500 dark:text-zinc-400 text-sm">Crie seu escritório na plataforma</p>
                 </div>
 
                 {/* Register Card */}
-                <div className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-                    <h2 className="text-xl font-semibold text-white mb-6">Criar novo escritório</h2>
+                <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 rounded-2xl p-8 shadow-2xl">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Criar novo escritório</h2>
 
                     {error && (
                         <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-6">
@@ -84,38 +84,38 @@ const RegisterPage: React.FC = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Workspace Info */}
-                        <div className="space-y-4 pb-4 border-b border-zinc-800">
-                            <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">Dados do Escritório</h3>
+                        <div className="space-y-4 pb-4 border-b border-gray-200 dark:border-zinc-800">
+                            <h3 className="text-sm font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Dados do Escritório</h3>
                             <div>
-                                <label htmlFor="workspace" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                                <label htmlFor="workspace" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                                     Nome do Escritório
                                 </label>
                                 <div className="relative">
-                                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
                                     <input
                                         id="workspace"
                                         type="text"
                                         value={workspaceName}
                                         onChange={(e) => setWorkspaceName(e.target.value)}
                                         placeholder="Miranda & Associados"
-                                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
                                         disabled={isLoading}
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label htmlFor="document" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                                <label htmlFor="document" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                                     CNPJ ou CPF
                                 </label>
                                 <div className="relative">
-                                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
                                     <input
                                         id="document"
                                         type="text"
                                         value={document}
                                         onChange={(e) => setDocument(e.target.value)}
                                         placeholder="00.000.000/0001-00"
-                                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
                                         disabled={isLoading}
                                     />
                                 </div>
@@ -124,72 +124,72 @@ const RegisterPage: React.FC = () => {
 
                         {/* Admin Info */}
                         <div className="space-y-4 pt-2">
-                            <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">Administrador</h3>
+                            <h3 className="text-sm font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Administrador</h3>
                             <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                                     Nome completo
                                 </label>
                                 <div className="relative">
-                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
                                     <input
                                         id="name"
                                         type="text"
                                         value={adminName}
                                         onChange={(e) => setAdminName(e.target.value)}
                                         placeholder="Dr. Samuel Miranda"
-                                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
                                         disabled={isLoading}
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label htmlFor="reg-email" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                                <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                                     E-mail
                                 </label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
                                     <input
                                         id="reg-email"
                                         type="email"
                                         value={adminEmail}
                                         onChange={(e) => setAdminEmail(e.target.value)}
                                         placeholder="admin@escritorio.com"
-                                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
                                         disabled={isLoading}
                                     />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label htmlFor="reg-password" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                                    <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                                         Senha
                                     </label>
                                     <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
                                         <input
                                             id="reg-password"
                                             type="password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder="••••••"
-                                            className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
+                                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
                                             disabled={isLoading}
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="confirm-password" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                                    <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                                         Confirmar
                                     </label>
                                     <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
                                         <input
                                             id="confirm-password"
                                             type="password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
                                             placeholder="••••••"
-                                            className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
+                                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg pl-11 pr-4 py-2.5 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all text-sm"
                                             disabled={isLoading}
                                         />
                                     </div>
@@ -214,16 +214,16 @@ const RegisterPage: React.FC = () => {
                     </form>
 
                     <div className="mt-6 text-center">
-                        <p className="text-zinc-500 text-sm">
+                        <p className="text-gray-500 dark:text-zinc-500 text-sm">
                             Já tem uma conta?{' '}
-                            <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                            <Link to="/login" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors">
                                 Fazer login
                             </Link>
                         </p>
                     </div>
                 </div>
 
-                <p className="text-center text-zinc-600 text-xs mt-6">
+                <p className="text-center text-gray-500 dark:text-zinc-600 text-xs mt-6">
                     © 2026 Maia Platform · VettaLaw
                 </p>
             </div>

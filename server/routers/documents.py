@@ -3,7 +3,8 @@ Maia Platform — Documents Router
 Endpoints for document upload, listing, and deletion.
 All protected by JWT, scoped to workspace.
 """
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from typing import Optional
 
 from database import get_database
 from middleware import get_current_user
@@ -19,6 +20,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     file: UploadFile = File(...),
+    cliente_id: Optional[str] = Form(None),
+    caso_id: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -52,6 +55,8 @@ async def upload_document(
             filename=file.filename or "unknown",
             workspace_id=current_user["_workspace_id"],
             user_id=current_user["_user_id"],
+            cliente_id=cliente_id,
+            caso_id=caso_id,
         )
         await audit_service.log_action(
             db, workspace_id=current_user["_workspace_id"], user_id=current_user["_user_id"],
@@ -74,6 +79,36 @@ async def list_documents(current_user: dict = Depends(get_current_user)):
         return {"documents": documents}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar documentos: {str(e)}")
+
+
+from pydantic import BaseModel
+
+class LinkDocumentRequest(BaseModel):
+    cliente_id: Optional[str] = None
+    caso_id: Optional[str] = None
+
+@router.put("/{doc_id}/link")
+async def link_document(
+    doc_id: str,
+    request: LinkDocumentRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Link an existing document to a client or case."""
+    try:
+        db = get_database()
+        result = await document_service.link_document(
+            db, doc_id, current_user["_workspace_id"], request.cliente_id, request.caso_id
+        )
+        await audit_service.log_action(
+            db, workspace_id=current_user["_workspace_id"], user_id=current_user["_user_id"],
+            user_email=current_user.get("email", ""), action="UPDATE", resource_type="documento",
+            resource_id=doc_id, details=f"Vinculado a Cliente/Caso"
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao vincular documento: {str(e)}")
 
 
 @router.delete("/{doc_id}")

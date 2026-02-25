@@ -29,9 +29,9 @@ async def register_workspace(request: RegisterWorkspaceRequest):
         # Audit: register
         await audit_service.log_action(
             db,
-            workspace_id=result.get("user", {}).get("workspace_id", ""),
-            user_id=result.get("user", {}).get("id", ""),
-            user_email=request.email,
+            workspace_id=result.user.workspace_id if hasattr(result, "user") else "",  # type: ignore
+            user_id=result.user.id if hasattr(result, "user") else "",  # type: ignore
+            user_email=request.admin_email,
             action="REGISTER",
             resource_type="auth",
             details=f"Workspace: {request.workspace_name}",
@@ -52,8 +52,8 @@ async def login(request: LoginRequest):
         # Audit: login
         await audit_service.log_action(
             db,
-            workspace_id=result.get("user", {}).get("workspace_id", ""),
-            user_id=result.get("user", {}).get("id", ""),
+            workspace_id=result.user.workspace_id if hasattr(result, "user") else "",  # type: ignore
+            user_id=result.user.id if hasattr(result, "user") else "",  # type: ignore
             user_email=request.email,
             action="LOGIN",
             resource_type="auth",

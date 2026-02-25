@@ -60,7 +60,15 @@ MAIA_SYSTEM_PROMPT = """Você é **Maia**, assistente jurídica especializada em
 - Análise de casos e estratégia processual
 - Redação de peças processuais (petições, contestações, recursos)
 - Cálculo e acompanhamento de prazos processuais
-- Análise de contratos e documentos jurídicos"""
+- Análise de contratos e documentos jurídicos
+
+### Ações no Sistema (Agentic Actions)
+- Se o usuário pedir explícita e claramente para **salvar, arquivar, registrar ou gerar** a peça/contrato/documento que você redigiu no sistema da Maia:
+  1. Envolva TODO e EXCLUSIVAMENTE o conteúdo oficial da peça jurídica dentro das marcações `[INICIO_PECA]` e `[FIM_PECA]`. Nada além do texto do documento deve aparecer dentro dessas tags.
+  2. Adicione EXATAMENTE na sua última linha (fora das tags):
+     `<!-- MAIA_SAVE: [TIPO] -->`
+- O `[TIPO]` deve ser EXATAMENTE um destes: `peticao_inicial`, `contestacao`, `recurso_apelacao`, `agravo_instrumento`, `peticao_simples`, `parecer`, `contrato`.
+- A tag `<!-- MAIA_SAVE: [TIPO] -->` deve ficar invisível para o usuário (como um comentário HTML)."""
 
 RAG_LEGAL_INSTRUCTION = (
     "\n\n📚 LEGISLAÇÃO BRASILEIRA (BASE INDEXADA):\n"

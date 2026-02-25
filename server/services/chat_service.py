@@ -5,6 +5,7 @@ Supports both general workspace chat and per-case contextual chat.
 Integrates hybrid RAG retrieval for document + legal-grounded responses (RF-40, RF-41).
 """
 from datetime import datetime
+import re
 from typing import Optional, AsyncGenerator
 
 from bson import ObjectId
@@ -13,6 +14,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from core.ai.base import AIProvider
 from core.rag import pipeline as rag
 from core.security.encryption import encrypt_field, decrypt_field
+from models.peca import TipoPeca
+from services import peca_service
 
 
 COLLECTION_NAME = "chat_history"
@@ -179,6 +182,28 @@ async def send_message(
         full_prompt, context, rag_context=rag_chunks, legal_context=legal_chunks
     )
 
+    # Agentic Action: Check for MAIA_SAVE tag
+    match = re.search(r'<!--\s*MAIA_SAVE:\s*(.*?)\s*-->', ai_reply)
+    if match:
+        tag_value = match.group(1).strip()
+        try:
+            tipo = TipoPeca(tag_value)
+            
+            # Buscar apenas o conteúdo entre as tags [INICIO_PECA] e [FIM_PECA]
+            payload_match = re.search(r'\[INICIO_PECA\](.*?)\[FIM_PECA\]', ai_reply, re.DOTALL)
+            clean_payload = payload_match.group(1).strip() if payload_match else re.sub(r'<!--\s*MAIA_SAVE:\s*.*?\s*-->', '', ai_reply).strip()
+            
+            titulo = f"{tipo.value.replace('_', ' ').title()}"
+            await peca_service.save_peca_direct(
+                db, workspace_id, user_id, tipo, titulo=titulo, conteudo=clean_payload, caso_id=caso_id
+            )
+            # Retira as tags pro usuário não vê-las
+            ai_reply = ai_reply.replace('[INICIO_PECA]', '').replace('[FIM_PECA]', '')
+            clean_reply = re.sub(r'<!--\s*MAIA_SAVE:\s*.*?\s*-->', '', ai_reply).strip()
+            ai_reply = clean_reply + "\n\n✅ *Peça salva automaticamente no sistema em **Peças Jurídicas**.*"
+        except ValueError:
+            pass
+
     # Save AI response (encrypted at rest)
     ai_message = {
         "role": "ai",
@@ -218,6 +243,32 @@ async def send_message_stream(
     ):
         full_reply += chunk
         yield chunk
+
+    # Agentic Action: Check for MAIA_SAVE tag after streaming is complete
+    match = re.search(r'<!--\s*MAIA_SAVE:\s*(.*?)\s*-->', full_reply)
+    if match:
+        tag_value = match.group(1).strip()
+        try:
+            tipo = TipoPeca(tag_value)
+            
+            # Buscar apenas o conteúdo entre as tags [INICIO_PECA] e [FIM_PECA]
+            payload_match = re.search(r'\[INICIO_PECA\](.*?)\[FIM_PECA\]', full_reply, re.DOTALL)
+            clean_payload = payload_match.group(1).strip() if payload_match else re.sub(r'<!--\s*MAIA_SAVE:\s*.*?\s*-->', '', full_reply).strip()
+
+            titulo = f"{tipo.value.replace('_', ' ').title()}"
+            await peca_service.save_peca_direct(
+                db, workspace_id, user_id, tipo, titulo=titulo, conteudo=clean_payload, caso_id=caso_id
+            )
+            
+            # Avisa o frontend de sucesso
+            success_msg = "\n\n✅ *Peça salva automaticamente no sistema em **Peças Jurídicas**.*"
+            # Nos storages internos removemos as horrorosas tags visuais
+            clean_reply_hist = full_reply.replace('[INICIO_PECA]', '').replace('[FIM_PECA]', '')
+            clean_reply_hist = re.sub(r'<!--\s*MAIA_SAVE:\s*.*?\s*-->', '', clean_reply_hist).strip()
+            full_reply = clean_reply_hist + success_msg
+            yield success_msg
+        except ValueError:
+            pass
 
     # Save full AI response after streaming (encrypted at rest)
     ai_message = {

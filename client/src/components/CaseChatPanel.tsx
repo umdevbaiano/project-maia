@@ -144,75 +144,57 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
     };
 
     return (
-        <div style={{
-            display: 'flex', flexDirection: 'column', height: '100%',
-            background: 'rgba(0,0,0,0.2)', borderRadius: '16px',
-            border: '1px solid rgba(124,58,237,0.2)', overflow: 'hidden',
-        }}>
+        <div className="flex flex-col h-full bg-white dark:bg-zinc-950/40 rounded-2xl border border-violet-500/20 overflow-hidden shadow-xl">
             {/* Header */}
-            <div style={{
-                padding: '0.75rem 1rem',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                background: 'rgba(124,58,237,0.1)',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <MessageSquare size={18} style={{ color: '#a78bfa' }} />
-                    <div>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#a78bfa' }}>Chat do Processo</span>
-                        <p style={{ margin: 0, fontSize: '0.7rem', opacity: 0.6, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {casoTitulo}
-                        </p>
+            <div className="flex flex-col border-b border-gray-200 dark:border-white/5 bg-violet-500/5 dark:bg-violet-500/10">
+                <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2">
+                        <MessageSquare className="w-[18px] h-[18px] text-violet-600 dark:text-violet-400" />
+                        <div>
+                            <span className="text-[0.8rem] font-bold text-violet-600 dark:text-violet-400">Chat do Processo</span>
+                            <p className="m-0 text-[0.7rem] opacity-70 dark:opacity-60 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-gray-700 dark:text-white">
+                                {casoTitulo}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-1">
+                        <button onClick={handleClear} className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-white/30 dark:hover:text-white transition-colors rounded-md" title="Limpar histórico">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-white/30 dark:hover:text-white transition-colors rounded-md">
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                    <button onClick={handleClear} style={{
-                        background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
-                        cursor: 'pointer', padding: '0.25rem',
-                    }} title="Limpar histórico">
-                        <Trash2 size={14} />
-                    </button>
-                    <button onClick={onClose} style={{
-                        background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
-                        cursor: 'pointer', padding: '0.25rem',
-                    }}>
-                        <X size={16} />
-                    </button>
+                {/* Context Indicator Badge */}
+                <div className="px-4 pb-2">
+                    <div className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 text-[0.65rem] px-2 py-0.5 rounded-full border border-violet-200 dark:border-violet-500/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span>
+                        Contexto restrito aos documentos deste processo
+                    </div>
                 </div>
             </div>
 
             {/* Messages */}
-            <div style={{
-                flex: 1, overflowY: 'auto', padding: '1rem',
-                display: 'flex', flexDirection: 'column', gap: '0.75rem',
-            }}>
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
-                        <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                    <div className="text-center p-8 opacity-50 dark:text-white text-gray-900">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                     </div>
                 ) : messages.length === 0 ? (
-                    <div style={{
-                        textAlign: 'center', padding: '2rem', opacity: 0.4,
-                    }}>
-                        <MessageSquare size={32} style={{ marginBottom: '0.5rem' }} />
-                        <p style={{ margin: 0, fontSize: '0.85rem' }}>Converse com a Maia sobre este processo</p>
-                        <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem' }}>
+                    <div className="text-center p-8 opacity-50 dark:opacity-40 text-gray-900 dark:text-white flex flex-col items-center">
+                        <MessageSquare className="w-8 h-8 mb-2" />
+                        <p className="m-0 text-[0.85rem]">Converse com a Maia sobre este processo</p>
+                        <p className="m-1 text-[0.75rem]">
                             Ela tem acesso ao dados do caso, prazos e legislação
                         </p>
                     </div>
                 ) : messages.map(msg => (
-                    <div key={msg.id} style={{
-                        display: 'flex',
-                        justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                    }}>
-                        <div style={{
-                            maxWidth: '85%', padding: '0.65rem 0.85rem', borderRadius: '12px',
-                            background: msg.role === 'user'
-                                ? 'linear-gradient(135deg, #7c3aed, #6d28d9)'
-                                : 'rgba(255,255,255,0.05)',
-                            border: msg.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                            fontSize: '0.85rem', lineHeight: 1.5, whiteSpace: 'pre-wrap',
-                        }}>
+                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] px-3.5 py-2.5 rounded-xl text-[0.85rem] leading-[1.5] whitespace-pre-wrap ${msg.role === 'user'
+                            ? 'bg-gradient-to-br from-violet-600 to-violet-700 text-white'
+                            : 'bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-zinc-100'
+                            }`}>
                             {msg.role === 'user' ? msg.content : (
                                 <div className="markdown-chat">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
@@ -222,13 +204,9 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                     </div>
                 ))}
                 {sending && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                        <div style={{
-                            padding: '0.65rem 0.85rem', borderRadius: '12px',
-                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                            display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', opacity: 0.6,
-                        }}>
-                            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                    <div className="flex justify-start">
+                        <div className="px-3.5 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-2 text-[0.85rem] opacity-60 text-gray-800 dark:text-zinc-100">
+                            <Loader2 className="w-4 h-4 animate-spin" />
                             Maia está analisando o caso...
                         </div>
                     </div>
@@ -237,49 +215,40 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
             </div>
 
             {/* Input */}
-            <div style={{
-                padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)',
-                display: 'flex', gap: '0.5rem',
-            }}>
+            <div className="p-3 border-t border-gray-200 dark:border-white/5 flex gap-2">
                 <input
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                     placeholder="Pergunte sobre o processo..."
                     disabled={sending}
-                    style={{
-                        flex: 1, padding: '0.6rem 0.75rem', borderRadius: '10px',
-                        background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
-                        color: '#fff', fontSize: '0.85rem', outline: 'none',
-                    }}
+                    className="flex-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white text-[0.85rem] outline-none focus:ring-2 focus:ring-violet-500/50"
                 />
                 <button
                     onClick={handleSend}
                     disabled={!input.trim() || sending}
-                    style={{
-                        background: input.trim() ? 'linear-gradient(135deg, #7c3aed, #a78bfa)' : 'rgba(255,255,255,0.05)',
-                        border: 'none', borderRadius: '10px', padding: '0.6rem 0.75rem',
-                        color: '#fff', cursor: input.trim() ? 'pointer' : 'not-allowed',
-                    }}
+                    className={`px-3 py-2 rounded-xl border-none transition-all ${input.trim()
+                        ? 'bg-gradient-to-br from-violet-600 to-violet-400 text-white cursor-pointer shadow-md'
+                        : 'bg-gray-200 dark:bg-white/5 text-gray-400 dark:text-white/30 cursor-not-allowed'
+                        }`}
                 >
-                    <Send size={16} />
+                    <Send className="w-4 h-4" />
                 </button>
             </div>
 
             <style>{`
-                @keyframes spin { to { transform: rotate(360deg); } }
                 .markdown-chat h2 { font-size: 0.95rem; font-weight: 700; margin: 0.5rem 0 0.25rem; }
                 .markdown-chat h3 { font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0.2rem; }
                 .markdown-chat p { margin: 0.25rem 0; }
                 .markdown-chat ul, .markdown-chat ol { margin: 0.25rem 0; padding-left: 1.25rem; }
                 .markdown-chat li { margin: 0.1rem 0; }
-                .markdown-chat strong { color: #c4b5fd; }
+                .markdown-chat strong { color: #8b5cf6; font-weight: 700; }
                 .markdown-chat blockquote { border-left: 3px solid #7c3aed; padding-left: 0.75rem; margin: 0.5rem 0; opacity: 0.85; font-style: italic; }
                 .markdown-chat table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.8rem; }
-                .markdown-chat th, .markdown-chat td { border: 1px solid rgba(255,255,255,0.1); padding: 0.3rem 0.5rem; text-align: left; }
-                .markdown-chat th { background: rgba(124,58,237,0.15); font-weight: 600; }
-                .markdown-chat hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.5rem 0; }
-                .markdown-chat code { background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.8rem; }
+                .markdown-chat th, .markdown-chat td { border: 1px solid rgba(128,128,128,0.3); padding: 0.3rem 0.5rem; text-align: left; }
+                .markdown-chat th { background: rgba(124,58,237,0.1); font-weight: 600; }
+                .markdown-chat hr { border: none; border-top: 1px solid rgba(128,128,128,0.3); margin: 0.5rem 0; }
+                .markdown-chat code { background: rgba(128,128,128,0.15); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.8rem; }
             `}</style>
         </div>
     );

@@ -3,6 +3,7 @@ Maia Platform — Document Service
 Business logic for document upload, indexing, and management.
 """
 from datetime import datetime
+from typing import Optional
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -27,6 +28,8 @@ async def process_document(
     filename: str,
     workspace_id: str,
     user_id: str,
+    cliente_id: Optional[str] = None,
+    caso_id: Optional[str] = None,
 ) -> dict:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
 
@@ -37,6 +40,8 @@ async def process_document(
         "chunk_count": 0,
         "workspace_id": workspace_id,
         "uploaded_by": user_id,
+        "cliente_id": cliente_id,
+        "caso_id": caso_id,
         "created_at": datetime.utcnow(),
     }
     result = await db[COLLECTION_NAME].insert_one(doc_record)
@@ -77,3 +82,31 @@ async def delete_document(db: AsyncIOMotorDatabase, doc_id: str, workspace_id: s
     await rag.delete_document(workspace_id, doc_id)
     await db[COLLECTION_NAME].delete_one({"_id": ObjectId(doc_id)})
     return {"message": f"Documento '{doc['filename']}' removido com sucesso."}
+
+
+async def link_document(
+    db: AsyncIOMotorDatabase,
+    doc_id: str,
+    workspace_id: str,
+    cliente_id: Optional[str] = None,
+    caso_id: Optional[str] = None,
+) -> dict:
+    doc = await db[COLLECTION_NAME].find_one({"_id": ObjectId(doc_id), "workspace_id": workspace_id})
+    if not doc:
+        raise ValueError("Documento não encontrado.")
+
+    update_fields = {}
+    if cliente_id is not None:
+        update_fields["cliente_id"] = cliente_id if cliente_id != "" else None
+    if caso_id is not None:
+        update_fields["caso_id"] = caso_id if caso_id != "" else None
+
+    if not update_fields:
+        return {"message": "Nenhum vínculo a atualizar."}
+
+    await db[COLLECTION_NAME].update_one(
+        {"_id": ObjectId(doc_id)},
+        {"$set": update_fields}
+    )
+
+    return {"message": "Documento vinculado com sucesso."}

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from core.security.encryption import encrypt_field, decrypt_field
 
 COLLECTION = "casos"
 
@@ -16,13 +17,25 @@ def _serialize(doc: dict) -> dict:
         for k in ("created_at", "updated_at"):
             if isinstance(doc.get(k), datetime):
                 doc[k] = doc[k].isoformat()
+        
+        # Descriptografar descrição se necessário
+        if doc.get("descricao"):
+            doc["descricao"] = decrypt_field(doc["descricao"])
     return doc
+
+
+def _encrypt_payload(data: dict) -> dict:
+    encrypted = data.copy()
+    if encrypted.get("descricao"):
+        encrypted["descricao"] = encrypt_field(str(encrypted["descricao"]))
+    return encrypted
 
 
 async def create_caso(db: AsyncIOMotorDatabase, data: dict, workspace_id: str, user_id: str) -> dict:
     now = datetime.utcnow()
+    secure_data = _encrypt_payload(data)
     doc = {
-        **data,
+        **secure_data,
         "workspace_id": workspace_id,
         "created_by": user_id,
         "created_at": now,
@@ -77,10 +90,13 @@ async def update_caso(db: AsyncIOMotorDatabase, caso_id: str, workspace_id: str,
     update_data = {k: v for k, v in data.items() if v is not None}
     if not update_data:
         return await get_caso(db, caso_id, workspace_id)
-    update_data["updated_at"] = datetime.utcnow()
+        
+    secure_data = _encrypt_payload(update_data)
+    secure_data["updated_at"] = datetime.utcnow()
+    
     await db[COLLECTION].update_one(
         {"_id": ObjectId(caso_id), "workspace_id": workspace_id},
-        {"$set": update_data},
+        {"$set": secure_data},
     )
     return await get_caso(db, caso_id, workspace_id)
 

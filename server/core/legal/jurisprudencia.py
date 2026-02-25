@@ -12,54 +12,60 @@ DEFAULT_HEADERS = {
 }
 
 def get_mock_stf(query: str, page: int, per_page: int) -> dict[str, Any]:
+    results: list[dict[str, Any]] = [
+        {
+            "tribunal": "STF",
+            "titulo": f"AgR no Recurso Extraordinário - {query.title()}",
+            "ementa": f"DIREITO CONSTITUCIONAL E CIVIL. {query.upper()}. REPERCUSSÃO GERAL. RECURSO EXTRAORDINÁRIO. O Tribunal Pleno, ao apreciar matéria semelhante, fixou tese afirmando a conformidade constitucional da reparação em casos de {query.lower()}. Precedentes da Corte. Agravo regimental desprovido.",
+            "relator": "Min. Roberto Barroso",
+            "data": "15/10/2025",
+            "url": "https://jurisprudencia.stf.jus.br",
+            "processo": "RE 1234567 AgR",
+        },
+        {
+            "tribunal": "STF",
+            "titulo": f"Habeas Corpus 888.999 - {query.title()}",
+            "ementa": f"PENAL E PROCESSUAL PENAL. {query.upper()}. DEVIDO PROCESSO LEGAL. A ordem de habeas corpus deve ser concedida quando há manifesta ilegalidade no ato coator relacionado a {query.lower()}, violando princípios fundamentais. Ordem concedida de ofício.",
+            "relator": "Min. Gilmar Mendes",
+            "data": "02/09/2025",
+            "url": "https://jurisprudencia.stf.jus.br",
+            "processo": "HC 888999",
+        }
+    ]
     return {
-        "results": [
-            {
-                "tribunal": "STF",
-                "titulo": f"AgR no Recurso Extraordinário - {query.title()}",
-                "ementa": f"DIREITO CONSTITUCIONAL E CIVIL. {query.upper()}. REPERCUSSÃO GERAL. RECURSO EXTRAORDINÁRIO. O Tribunal Pleno, ao apreciar matéria semelhante, fixou tese afirmando a conformidade constitucional da reparação em casos de {query.lower()}. Precedentes da Corte. Agravo regimental desprovido.",
-                "relator": "Min. Roberto Barroso",
-                "data": "15/10/2025",
-                "url": "https://jurisprudencia.stf.jus.br",
-                "processo": "RE 1234567 AgR",
-            },
-            {
-                "tribunal": "STF",
-                "titulo": f"Habeas Corpus 888.999 - {query.title()}",
-                "ementa": f"PENAL E PROCESSUAL PENAL. {query.upper()}. DEVIDO PROCESSO LEGAL. A ordem de habeas corpus deve ser concedida quando há manifesta ilegalidade no ato coator relacionado a {query.lower()}, violando princípios fundamentais. Ordem concedida de ofício.",
-                "relator": "Min. Gilmar Mendes",
-                "data": "02/09/2025",
-                "url": "https://jurisprudencia.stf.jus.br",
-                "processo": "HC 888999",
-            }
-        ][:per_page],
+        "results": results[:per_page],
         "total": 42,
         "page": page,
     }
 
 
 def get_mock_stj(query: str, page: int, per_page: int) -> dict[str, Any]:
+    results: list[dict[str, Any]] = [
+        {
+            "tribunal": "STJ",
+            "titulo": f"Recurso Especial - {query.title()}",
+            "ementa": f"CIVIL. PROCESSUAL CIVIL. {query.upper()}. AÇÃO DE INDENIZAÇÃO. A jurisprudência desta Corte Superior é firme no sentido de que, em casos envolvendo {query.lower()}, os valores devem observar a razoabilidade e proporcionalidade. Recurso especial conhecido e parcialmente provido.",
+            "relator": "Min. Nancy Andrighi",
+            "data": "10/11/2025",
+            "url": "https://scon.stj.jus.br",
+            "processo": "REsp 1.987.654/SP",
+        },
+        {
+            "tribunal": "STJ",
+            "titulo": f"Agravo Interno no Agravo em Recurso Especial - {query.title()}",
+            "ementa": f"PROCESSUAL CIVIL. AGRAVO INTERNO. {query.upper()}. REQUISITOS DE ADMISSIBILIDADE. SÚMULA 7/STJ. A alteração das conclusões do acórdão recorrido acerca da ocorrência de {query.lower()} demanda o reexame do acervo fático-probatório. Incidência da Súmula 7/STJ. Agravo interno não provido.",
+            "relator": "Min. Luis Felipe Salomão",
+            "data": "25/08/2025",
+            "url": "https://scon.stj.jus.br",
+            "processo": "AgInt no AREsp 123.456/RJ",
+        }
+    ]
+    
+    # Cast explicitly to list[Any] so slicing/returning won't complain with dict[str, Any] Return
+    safe_results: list[Any] = results
+    
     return {
-        "results": [
-            {
-                "tribunal": "STJ",
-                "titulo": f"Recurso Especial - {query.title()}",
-                "ementa": f"CIVIL. PROCESSUAL CIVIL. {query.upper()}. AÇÃO DE INDENIZAÇÃO. A jurisprudência desta Corte Superior é firme no sentido de que, em casos envolvendo {query.lower()}, os valores devem observar a razoabilidade e proporcionalidade. Recurso especial conhecido e parcialmente provido.",
-                "relator": "Min. Nancy Andrighi",
-                "data": "10/11/2025",
-                "url": "https://scon.stj.jus.br",
-                "processo": "REsp 1.987.654/SP",
-            },
-            {
-                "tribunal": "STJ",
-                "titulo": f"Agravo Interno no Agravo em Recurso Especial - {query.title()}",
-                "ementa": f"PROCESSUAL CIVIL. AGRAVO INTERNO. {query.upper()}. REQUISITOS DE ADMISSIBILIDADE. SÚMULA 7/STJ. A alteração das conclusões do acórdão recorrido acerca da ocorrência de {query.lower()} demanda o reexame do acervo fático-probatório. Incidência da Súmula 7/STJ. Agravo interno não provido.",
-                "relator": "Min. Luis Felipe Salomão",
-                "data": "25/08/2025",
-                "url": "https://scon.stj.jus.br",
-                "processo": "AgInt no AREsp 123.456/RJ",
-            }
-        ][:per_page],
+        "results": safe_results[:per_page],
         "total": 85,
         "page": page,
     }
@@ -84,7 +90,7 @@ async def search_stf(query: str, page: int = 1, per_page: int = 10) -> dict[str,
             resp.raise_for_status()
             data = resp.json()
 
-            results = []
+            results: list[dict[str, Any]] = []
             for item in data.get("result", []):
                 results.append({
                     "tribunal": "STF",
@@ -129,19 +135,26 @@ async def search_stj(query: str, page: int = 1, per_page: int = 10) -> dict[str,
             resp.raise_for_status()
             data = resp.json()
 
-            results = []
-            for item in data.get("resultado", {}).get("documento", []):
-                results.append({
-                    "tribunal": "STJ",
-                    "titulo": item.get("titulo", ""),
-                    "ementa": item.get("ementa", ""),
-                    "relator": item.get("relator", ""),
-                    "data": item.get("dtjulgamento", item.get("dtpublicacao", "")),
-                    "url": item.get("url", ""),
-                    "processo": item.get("processo", ""),
-                })
-
-            total = data.get("resultado", {}).get("totalDocumentos", 0)
+            # Ensure data mapping is safe
+            resultado_node = data.get("resultado", {})
+            if isinstance(resultado_node, dict):
+                documentos = resultado_node.get("documento", [])
+                if isinstance(documentos, list):
+                    for item in documentos:
+                        if isinstance(item, dict):
+                            results.append({
+                                "tribunal": "STJ",
+                                "titulo": item.get("titulo", ""),
+                                "ementa": item.get("ementa", ""),
+                                "relator": item.get("relator", ""),
+                                "data": item.get("dtjulgamento", item.get("dtpublicacao", "")),
+                                "url": item.get("url", ""),
+                                "processo": item.get("processo", ""),
+                            })
+                
+                total = resultado_node.get("totalDocumentos", 0)
+            else:
+                total = 0
             return {
                 "results": results,
                 "total": int(total) if total else 0,
@@ -157,7 +170,7 @@ async def search_jurisprudencia(
     tribunal: Optional[str] = None,
     page: int = 1,
     per_page: int = 10,
-) -> dict:
+) -> dict[str, Any]:
     """
     Unified jurisprudence search.
     tribunal: "STF", "STJ", or None (both).
@@ -183,4 +196,4 @@ def _clean_html(text: str) -> str:
     import re
     clean = re.sub(r'<[^>]+>', '', text)
     clean = re.sub(r'\s+', ' ', clean).strip()
-    return clean[:2000] if len(clean) > 2000 else clean
+    return str(clean)[:2000] if len(str(clean)) > 2000 else str(clean)

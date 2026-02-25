@@ -5,7 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from database import get_database
-from middleware import get_current_user
+from middleware import get_current_user, require_roles
+from models.user import UserRole
 from services import caso_service, audit_service
 from models.caso import CasoCreateRequest, CasoUpdateRequest, CasoResponse
 from core.legal.datajud import lookup_case
@@ -88,7 +89,10 @@ async def update_caso(caso_id: str, request: CasoUpdateRequest, current_user: di
 
 
 @router.delete("/{caso_id}")
-async def delete_caso(caso_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_caso(
+    caso_id: str, 
+    current_user: dict = Depends(require_roles(UserRole.ADMIN, UserRole.SOCIO))
+):
     db = get_database()
     deleted = await caso_service.delete_caso(db, caso_id, current_user["_workspace_id"])
     if not deleted:

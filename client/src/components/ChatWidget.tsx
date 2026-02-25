@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, X, Maximize2, Send, Loader2 } from 'lucide-react';
+import { X, Maximize2, Send, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { chatApi } from '../utils/api';
 import type { ChatMessage } from '../types/chat';
@@ -118,38 +118,38 @@ const ChatWidget: React.FC = () => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all hover:scale-110 z-50 animate-pulse"
+        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 p-3 rounded-full shadow-lg transition-all hover:scale-110 z-50 animate-pulse"
         aria-label="Open Maia Assistant"
       >
-        <Bot className="w-6 h-6" />
+        <img src="/maia-avatar.png" alt="Maia Avatar" className="w-8 h-8 rounded-full object-cover" />
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl flex flex-col z-50">
+    <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-2xl flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900 rounded-t-lg">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 rounded-t-lg">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-500/30">
+            <img src="/maia-avatar.png" alt="Maia" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h3 className="font-semibold text-white">Maia Quick Assist</h3>
-            <p className="text-xs text-zinc-400">Assistente Jurídica</p>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Maia Quick Assist</h3>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">Assistente Jurídica</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExpand}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white"
+            className="p-2 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-lg transition-colors text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
             aria-label="Expand to full page"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white"
+            className="p-2 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-lg transition-colors text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
             aria-label="Close widget"
           >
             <X className="w-4 h-4" />
@@ -164,8 +164,8 @@ const ChatWidget: React.FC = () => {
             <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-zinc-500 px-4">
-            <Bot className="w-12 h-12 mb-4 text-zinc-600" />
+          <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-zinc-500 px-4">
+            <img src="/maia-avatar.png" alt="Maia" className="w-20 h-20 mb-4 rounded-full border-4 border-white dark:border-zinc-800 shadow-md object-cover" />
             <p className="text-sm">
               Olá! Sou a Maia, sua assistente jurídica.
             </p>
@@ -181,8 +181,8 @@ const ChatWidget: React.FC = () => {
             >
               <div
                 className={`max-w-[85%] rounded-lg px-4 py-2 ${message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-zinc-800 text-zinc-100'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-100'
                   }`}
               >
                 {message.id === 'typing' ? (
@@ -191,7 +191,7 @@ const ChatWidget: React.FC = () => {
                     <span className="text-sm">{message.content}</span>
                   </div>
                 ) : (
-                  <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
+                  <div className="text-sm leading-relaxed prose dark:prose-invert prose-sm max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   </div>
                 )}
@@ -203,7 +203,7 @@ const ChatWidget: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-zinc-800 bg-zinc-900 rounded-b-lg">
+      <div className="p-4 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 rounded-b-lg">
         <div className="flex gap-2">
           <input
             type="text"
@@ -211,7 +211,7 @@ const ChatWidget: React.FC = () => {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua pergunta..."
-            className="flex-1 input-field text-sm"
+            className="flex-1 input-field text-sm text-gray-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700"
             disabled={isLoading}
           />
           <button

@@ -1,5 +1,6 @@
 import re
 import urllib.request
+from typing import Any
 from bs4 import BeautifulSoup
 
 def test_regex():
@@ -33,8 +34,11 @@ def test_regex():
 
     # Handle `Art. 1º`, `Art. 1o`, `art. 2`, `art. 1o-A`, etc.
     pattern_new = r'((?:[Aa]rt\.|[Aa]rtigo)\s*\d+(?:[º°oOA-Z\-])*\.?\s*)'
-    parts_new = re.split(pattern_new, text)
-    articles_new = [p.strip() for p in parts_new if re.match(pattern_new, p)]
+    parts = re.split(pattern_new, text)
+    articles_new: list[str] = []
+    if len(parts) > 1:
+        for i in range(1, len(parts), 2):
+            articles_new.append(str(parts[i]).strip())
     print(f"\nNew Regex found {len(articles_new)} articles.")
     if len(articles_new) > 0:
         print("Sample new:", articles_new[:10])

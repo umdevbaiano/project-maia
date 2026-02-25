@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Trash2, Copy, Check, Loader2, Briefcase, ChevronDown, Download } from 'lucide-react';
+import { FileText, Plus, Trash2, Copy, Check, Loader2, Briefcase, ChevronDown, Download, Edit2, Save, X, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import api from '../utils/api';
 import { Peca, TIPO_PECA_OPTIONS } from '../types/peca';
+
+interface Cliente {
+    id: string;
+    nome: string;
+    documento: string;
+}
 
 interface Caso {
     id: string;
@@ -14,6 +20,7 @@ interface Caso {
 export default function PecasPage() {
     const [pecas, setPecas] = useState<Peca[]>([]);
     const [casos, setCasos] = useState<Caso[]>([]);
+    const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [showForm, setShowForm] = useState(false);
@@ -25,9 +32,17 @@ export default function PecasPage() {
     const [casoId, setCasoId] = useState('');
     const [instrucoes, setInstrucoes] = useState('');
 
+    // Editing State
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedContent, setEditedContent] = useState('');
+    const [editedCasoId, setEditedCasoId] = useState('');
+    const [editedClienteId, setEditedClienteId] = useState('');
+    const [saving, setSaving] = useState(false);
+
     useEffect(() => {
         fetchPecas();
         fetchCasos();
+        fetchClientes();
     }, []);
 
     const fetchPecas = async () => {
@@ -48,6 +63,15 @@ export default function PecasPage() {
             setCasos(response.data.casos || []);
         } catch (error) {
             console.error('Error fetching casos:', error);
+        }
+    };
+
+    const fetchClientes = async () => {
+        try {
+            const response = await api.get('/clientes/');
+            setClientes(response.data.clientes || []);
+        } catch (error) {
+            console.error('Error fetching clientes:', error);
         }
     };
 
@@ -78,9 +102,41 @@ export default function PecasPage() {
         try {
             await api.delete(`/pecas/${id}`);
             setPecas(pecas.filter(p => p.id !== id));
-            if (selectedPeca?.id === id) setSelectedPeca(null);
+            if (selectedPeca?.id === id) {
+                setSelectedPeca(null);
+                setIsEditing(false);
+            }
         } catch (error) {
             console.error('Error deleting peca:', error);
+        }
+    };
+
+    const handleSelectPeca = (p: Peca) => {
+        setSelectedPeca(p);
+        setIsEditing(false);
+        setEditedContent(p.conteudo);
+        setEditedCasoId(p.caso_id || '');
+        setEditedClienteId(p.cliente_id || '');
+    };
+
+    const handleUpdate = async () => {
+        if (!selectedPeca) return;
+        setSaving(true);
+        try {
+            const updates = {
+                conteudo: editedContent,
+                caso_id: editedCasoId || null,
+                cliente_id: editedClienteId || null,
+            };
+            const response = await api.put(`/pecas/${selectedPeca.id}`, updates);
+            const updatedPeca = response.data;
+            setPecas(pecas.map(p => p.id === updatedPeca.id ? updatedPeca : p));
+            setSelectedPeca(updatedPeca);
+            setIsEditing(false);
+        } catch (error: any) {
+            alert(error.response?.data?.detail || 'Erro ao atualizar peça');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -95,10 +151,20 @@ export default function PecasPage() {
             const response = await api.get(`/pecas/${pecaId}/download`, {
                 responseType: 'blob',
             });
+            let filename = `peca_${pecaId}.docx`;
+            const disposition = response.headers['content-disposition'];
+            if (disposition && disposition.indexOf('filename') !== -1) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                    filename = decodeURIComponent(filename);
+                }
+            }
+
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `peca_${pecaId}.docx`);
+            link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -233,7 +299,7 @@ export default function PecasPage() {
                     ) : pecas.map(p => (
                         <div
                             key={p.id}
-                            onClick={() => setSelectedPeca(p)}
+                            onClick={() => handleSelectPeca(p)}
                             style={{
                                 padding: '1rem 1.25rem', borderRadius: '12px', cursor: 'pointer',
                                 background: selectedPeca?.id === p.id ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.02)',
@@ -295,77 +361,146 @@ export default function PecasPage() {
                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase' }}>
                                     {selectedPeca.tipo_label}
                                 </span>
-                                <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.1rem', fontWeight: 700 }}>
+                                <h3 style={{ margin: '0.25rem 0 0.5rem', fontSize: '1.1rem', fontWeight: 700 }}>
                                     {selectedPeca.titulo}
                                 </h3>
+
+                                {isEditing ? (
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                        <select value={editedClienteId} onChange={e => setEditedClienteId(e.target.value)} style={{
+                                            padding: '0.4rem 0.5rem', borderRadius: '6px', width: '150px',
+                                            background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                                            color: '#fff', fontSize: '0.75rem',
+                                        }}>
+                                            <option value="">Sem Cliente vinculado</option>
+                                            {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                        </select>
+                                        <select value={editedCasoId} onChange={e => setEditedCasoId(e.target.value)} style={{
+                                            padding: '0.4rem 0.5rem', borderRadius: '6px', width: '150px',
+                                            background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                                            color: '#fff', fontSize: '0.75rem',
+                                        }}>
+                                            <option value="">Sem Processo vinculado</option>
+                                            {casos.map(c => <option key={c.id} value={c.id}>{c.numero || c.titulo}</option>)}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', opacity: 0.6 }}>
+                                        {selectedPeca.cliente_nome && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><User size={12} /> {selectedPeca.cliente_nome}</span>
+                                        )}
+                                        {selectedPeca.caso_titulo && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Briefcase size={12} /> {selectedPeca.caso_titulo}</span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button
-                                    onClick={() => handleDownloadDocx(selectedPeca.id)}
-                                    style={{
-                                        background: 'rgba(34,197,94,0.1)',
-                                        border: '1px solid rgba(34,197,94,0.2)',
-                                        borderRadius: '10px', padding: '0.5rem 1rem',
-                                        color: '#22c55e', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
-                                    }}
-                                >
-                                    <Download size={16} /> DOCX
-                                </button>
-                                <button
-                                    onClick={() => handleCopy(selectedPeca.conteudo)}
-                                    style={{
-                                        background: copied ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
-                                        border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                                        borderRadius: '10px', padding: '0.5rem 1rem',
-                                        color: copied ? '#22c55e' : '#fff', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
-                                    }}
-                                >
-                                    {copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar</>}
-                                </button>
+                                {isEditing ? (
+                                    <>
+                                        <button onClick={() => setIsEditing(false)} style={{
+                                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '10px', padding: '0.5rem 1rem', color: '#fff', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                        }}>
+                                            <X size={16} /> Cancelar
+                                        </button>
+                                        <button onClick={handleUpdate} disabled={saving} style={{
+                                            background: 'linear-gradient(135deg, #7c3aed, #a78bfa)', border: 'none',
+                                            borderRadius: '10px', padding: '0.5rem 1rem', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                        }}>
+                                            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />} Salvar
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button onClick={() => setIsEditing(true)} style={{
+                                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '10px', padding: '0.5rem 1rem', color: '#fff', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                        }}>
+                                            <Edit2 size={16} /> Editar
+                                        </button>
+                                        <button
+                                            onClick={() => handleDownloadDocx(selectedPeca.id)}
+                                            style={{
+                                                background: 'rgba(34,197,94,0.1)',
+                                                border: '1px solid rgba(34,197,94,0.2)',
+                                                borderRadius: '10px', padding: '0.5rem 1rem',
+                                                color: '#22c55e', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                            }}
+                                        >
+                                            <Download size={16} /> DOCX
+                                        </button>
+                                        <button
+                                            onClick={() => handleCopy(selectedPeca.conteudo)}
+                                            style={{
+                                                background: copied ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+                                                border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                                                borderRadius: '10px', padding: '0.5rem 1rem',
+                                                color: copied ? '#22c55e' : '#fff', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                            }}
+                                        >
+                                            {copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar</>}
+                                        </button>
+                                    </div>
                             </div>
-                        </div>
 
-                        {/* Doc Content */}
-                        <div className="markdown-peca" style={{
-                            flex: 1, overflowY: 'auto', padding: '1.5rem 2rem',
-                            fontSize: '0.95rem', lineHeight: 1.8,
-                            fontFamily: '"Inter", sans-serif',
+                            {/* Doc Content */}
+                            {isEditing ? (
+                                <textarea
+                                    value={editedContent}
+                                    onChange={e => setEditedContent(e.target.value)}
+                                    style={{
+                                        flex: 1, padding: '1.5rem 2rem', background: 'transparent',
+                                        border: 'none', color: '#fff', fontSize: '0.95rem',
+                                        fontFamily: '"JetBrains Mono", "Courier New", monospace', resize: 'none',
+                                        lineHeight: 1.6, outline: 'none'
+                                    }}
+                                />
+                            ) : (
+                                <div className="markdown-peca" style={{
+                                    flex: 1, overflowY: 'auto', padding: '1.5rem 2rem',
+                                    fontSize: '0.95rem', lineHeight: 1.8,
+                                    fontFamily: '"Inter", sans-serif',
+                                }}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPeca.conteudo}</ReactMarkdown>
+                                </div>
+                            )}
+                        </>
+                        ) : (
+                        <div style={{
+                            flex: 1, display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', opacity: 0.3,
                         }}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPeca.conteudo}</ReactMarkdown>
+                            <FileText size={64} style={{ marginBottom: '1rem' }} />
+                            <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Selecione ou gere uma peça</p>
+                            <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                                A Maia vai gerar o documento com base na legislação brasileira
+                            </p>
                         </div>
-                    </>
-                ) : (
-                    <div style={{
-                        flex: 1, display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', opacity: 0.3,
-                    }}>
-                        <FileText size={64} style={{ marginBottom: '1rem' }} />
-                        <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Selecione ou gere uma peça</p>
-                        <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                            A Maia vai gerar o documento com base na legislação brasileira
-                        </p>
+                    )}
                     </div>
-                )}
-            </div>
 
-            <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .markdown-peca h1 { font-size: 1.3rem; font-weight: 800; margin: 1rem 0 0.5rem; text-align: center; text-transform: uppercase; }
-        .markdown-peca h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.35rem; text-transform: uppercase; }
-        .markdown-peca h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
-        .markdown-peca p { margin: 0.4rem 0; text-align: justify; }
-        .markdown-peca ul, .markdown-peca ol { margin: 0.4rem 0; padding-left: 1.5rem; }
-        .markdown-peca li { margin: 0.2rem 0; }
-        .markdown-peca strong { color: #c4b5fd; }
-        .markdown-peca blockquote { border-left: 3px solid #7c3aed; padding-left: 1rem; margin: 0.75rem 0; opacity: 0.85; font-style: italic; }
-        .markdown-peca table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
-        .markdown-peca th, .markdown-peca td { border: 1px solid rgba(255,255,255,0.1); padding: 0.4rem 0.75rem; text-align: left; }
-        .markdown-peca th { background: rgba(124,58,237,0.15); font-weight: 600; }
-        .markdown-peca hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0; }
-        .markdown-peca code { background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.85rem; }
-      `}</style>
-        </div>
-    );
+                <style>{`
+                    @keyframes spin { to { transform: rotate(360deg); } }
+                    .markdown-peca h1 { font-size: 1.3rem; font-weight: 800; margin: 1rem 0 0.5rem; text-align: center; text-transform: uppercase; }
+                    .markdown-peca h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.35rem; text-transform: uppercase; }
+                    .markdown-peca h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+                    .markdown-peca p { margin: 0.4rem 0; text-align: justify; }
+                    .markdown-peca ul, .markdown-peca ol { margin: 0.4rem 0; padding-left: 1.5rem; }
+                    .markdown-peca li { margin: 0.2rem 0; }
+                    .markdown-peca strong { color: #c4b5fd; }
+                    .markdown-peca blockquote { border-left: 3px solid #7c3aed; padding-left: 1rem; margin: 0.75rem 0; opacity: 0.85; font-style: italic; }
+                    .markdown-peca table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+                    .markdown-peca th, .markdown-peca td { border: 1px solid rgba(255,255,255,0.1); padding: 0.4rem 0.75rem; text-align: left; }
+                    .markdown-peca th { background: rgba(124,58,237,0.15); font-weight: 600; }
+                    .markdown-peca hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0; }
+                    .markdown-peca code { background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.85rem; }
+                `}</style>
+            </div>
+            );
 }

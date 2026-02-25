@@ -15,6 +15,8 @@ class DocumentInDB(BaseModel):
     chunk_count: int = 0
     workspace_id: str
     uploaded_by: str
+    cliente_id: Optional[str] = None
+    caso_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -26,6 +28,8 @@ class DocumentResponse(BaseModel):
     size_bytes: int
     chunk_count: int
     uploaded_by: str
+    cliente_id: Optional[str] = None
+    caso_id: Optional[str] = None
     created_at: str
 
 
