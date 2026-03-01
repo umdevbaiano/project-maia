@@ -2,7 +2,6 @@
 Maia Platform — Case (Processo) Models
 """
 from pydantic import BaseModel, Field
-from datetime import datetime
 from typing import Optional, Any
 from enum import Enum
 

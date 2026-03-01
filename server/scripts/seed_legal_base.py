@@ -43,7 +43,7 @@ def main():
 
     print()
     print("=" * 60)
-    print(f"🎉 Indexação completa!")
+    print("🎉 Indexação completa!")
     print(f"   📊 Total: {total_chunks} artigos de {len(laws)} leis")
     print(f"   💾 Coleção ChromaDB: legislacao_br ({get_legal_collection_count()} registros)")
     print(f"   ⏱️  Tempo: {elapsed:.1f}s")

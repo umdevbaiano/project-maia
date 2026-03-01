@@ -23,6 +23,11 @@ export interface RegisterRequest {
   password: string;
 }
 
+export interface VerifyRegistrationRequest {
+  email: string;
+  code: string;
+}
+
 export interface TokenResponse {
   access_token: string;
   token_type: string;

@@ -3,7 +3,6 @@ Maia Platform — Peça Jurídica Models
 Types for AI-generated legal documents.
 """
 from pydantic import BaseModel, Field
-from datetime import datetime
 from typing import Optional
 from enum import Enum
 

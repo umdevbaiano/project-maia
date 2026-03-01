@@ -77,19 +77,26 @@ const ChatPage: React.FC = () => {
 
       if (!reader) throw new Error('No reader available');
 
+      // Read stream
       let buffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
+        const lines = buffer.split('\n');
+
+        // Keep the last partial line in the buffer
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
           try {
-            const data = JSON.parse(line.slice(6));
+            const data = JSON.parse(trimmedLine.slice(6));
+
             if (data.chunk) {
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -103,7 +110,7 @@ const ChatPage: React.FC = () => {
               // Remove the streaming ID so it becomes a normal message
               setMessages((prev) =>
                 prev.map((msg) =>
-                  msg.id === streamingId ? { ...msg, id: undefined } : msg
+                  msg.id === streamingId ? { ...msg, id: undefined, content: data.reply } : msg
                 )
               );
             }
@@ -111,7 +118,7 @@ const ChatPage: React.FC = () => {
               throw new Error(data.error);
             }
           } catch (parseErr) {
-            // Skip malformed SSE lines
+            // Skip malformed SSE lines silently
           }
         }
       }
@@ -240,22 +247,27 @@ const ChatPage: React.FC = () => {
                       : 'bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 border border-gray-200 dark:border-zinc-800'
                       }`}
                   >
-                    {message.id === 'typing' ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>{message.content}</span>
+                    {message.id && message.id.toString().startsWith('streaming-') && message.content === '' ? (
+                      <div className="flex items-center gap-3 py-1">
+                        <div className="flex gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-zinc-600 animate-bounce [animation-delay:-0.3s]"></div>
+                          <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-zinc-600 animate-bounce [animation-delay:-0.15s]"></div>
+                          <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-zinc-600 animate-bounce"></div>
+                        </div>
+                        <span className="text-sm text-gray-500 dark:text-zinc-500 font-medium">Maia está analisando...</span>
                       </div>
                     ) : (
                       <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                       </div>
                     )}
-                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 opacity-80">
+                    <span className="text-[10px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
                         hour: '2-digit',
                         minute: '2-digit',
+                        timeZone: 'America/Sao_Paulo'
                       })}
-                    </div>
+                    </span>
                   </div>
                 </div>
               ))}

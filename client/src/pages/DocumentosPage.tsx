@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Upload, Trash2, Search, Loader2, File, FileUp, Link as LinkIcon, X, Briefcase, User } from 'lucide-react';
+import { FileText, Trash2, Loader2, File, FileUp, Link as LinkIcon, X, Briefcase, User } from 'lucide-react';
 import api from '../utils/api';
 import type { Documento } from '../types/documento';
 import type { Cliente } from '../types/cliente';
@@ -151,7 +151,7 @@ const DocumentosPage: React.FC = () => {
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-gray-500 dark:text-zinc-500">{formatBytes(doc.size_bytes)}</span>
                     <span className="text-xs text-blue-500 dark:text-blue-400">{doc.chunk_count} chunks</span>
-                    <span className="text-xs text-gray-400 dark:text-zinc-600">{new Date(doc.created_at).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-xs text-gray-400 dark:text-zinc-600">{new Date(doc.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                     {(doc.cliente_id || doc.caso_id) && (
                       <span className="text-xs bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <LinkIcon className="w-3 h-3" /> Vinculado

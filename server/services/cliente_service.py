@@ -97,8 +97,8 @@ async def get_cliente_report(db: AsyncIOMotorDatabase, cliente_id: str, workspac
         if c.get("descricao"):
             try:
                 c["descricao"] = decrypt_field(c["descricao"])
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Warning: Failed to decrypt description for case ID {c['_id']}: {e}")
         if isinstance(c.get("created_at"), datetime):
             c["created_at"] = c["created_at"].isoformat()
         if isinstance(c.get("updated_at"), datetime):

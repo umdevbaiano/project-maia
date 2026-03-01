@@ -2,9 +2,8 @@
 Maia Platform — User & Workspace Models
 Pydantic models for authentication, RBAC, and multi-tenancy.
 """
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
 from enum import Enum
 
 
@@ -46,6 +45,12 @@ class RegisterWorkspaceRequest(BaseModel):
     admin_name: str = Field(..., min_length=2, max_length=100)
     admin_email: str = Field(..., min_length=5)
     password: str = Field(..., min_length=6)
+
+
+class VerifyRegistrationRequest(BaseModel):
+    """Verify OTP code sent to email to complete registration."""
+    email: str
+    code: str = Field(..., min_length=6, max_length=6)
 
 
 class LoginRequest(BaseModel):

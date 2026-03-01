@@ -121,111 +121,114 @@ const CasosPage: React.FC = () => {
                                             {STATUS_LABELS[caso.status] || caso.status}
                                         </span>
                                     </td>
-                                    <button onClick={() => setActivePanelCaso({ id: caso.id, titulo: caso.titulo })} className="text-gray-400 dark:text-zinc-400 hover:text-green-500 dark:hover:text-green-400 p-1 mr-2 transition-colors" title="Ver Documentos"><FileText className="w-4 h-4" /></button>
-                                    <button onClick={() => setChatCaso(caso)} className="text-violet-500/80 hover:text-violet-600 dark:text-violet-400/80 dark:hover:text-violet-300 p-1 mr-2 transition-colors relative group" title="Análise IA do Processo">
-                                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
-                                        </span>
-                                        <MessageSquare className="w-4 h-4" />
-                                    </button>
-                                    <button onClick={() => openEdit(caso)} className="text-gray-400 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 p-1 mr-2 transition-colors"><Edit3 className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDelete(caso.id)} className="text-gray-400 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 p-1 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-zinc-400">
+                                        {clientes.find(c => c.id === caso.cliente_id)?.nome || '-'}
+                                    </td>
+                                    <td className="text-right px-6 py-4 whitespace-nowrap">
+                                        <button onClick={() => setActivePanelCaso({ id: caso.id, titulo: caso.titulo })} className="text-gray-400 dark:text-zinc-400 hover:text-green-500 dark:hover:text-green-400 p-1 mr-2 transition-colors" title="Ver Documentos"><FileText className="w-4 h-4" /></button>
+                                        <button onClick={() => setChatCaso(caso)} className="text-violet-500/80 hover:text-violet-600 dark:text-violet-400/80 dark:hover:text-violet-300 p-1 mr-2 transition-colors relative group" title="Análise IA do Processo">
+                                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+                                            </span>
+                                            <MessageSquare className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => openEdit(caso)} className="text-gray-400 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 p-1 mr-2 transition-colors"><Edit3 className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDelete(caso.id)} className="text-gray-400 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 p-1 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                    </td>
                                 </tr>
                             ))}
-                    </tbody>
-                </table>
-                </table>
-            </div >
-            )}
-
-{/* Modal */ }
-{
-    showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{editingCaso ? 'Editar Processo' : 'Novo Processo'}</h2>
-                    <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white"><X className="w-5 h-5" /></button>
+                        </tbody>
+                    </table>
                 </div>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Número *</label>
-                            <input value={form.numero} onChange={e => setForm({ ...form, numero: e.target.value })} placeholder="0001234-56.2026.8.05.0001"
-                                className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
-                        <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Tipo</label>
-                            <select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value as CasoTipo })}
-                                className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
-                                {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                            </select></div>
+            )
+            }
+
+            {/* Modal */}
+            {
+                showModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{editingCaso ? 'Editar Processo' : 'Novo Processo'}</h2>
+                                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white"><X className="w-5 h-5" /></button>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Número *</label>
+                                        <input value={form.numero} onChange={e => setForm({ ...form, numero: e.target.value })} placeholder="0001234-56.2026.8.05.0001"
+                                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Tipo</label>
+                                        <select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value as CasoTipo })}
+                                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
+                                            {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                        </select></div>
+                                </div>
+                                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Título *</label>
+                                    <input value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} placeholder="Indenização por danos morais"
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Status</label>
+                                        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CasoStatus })}
+                                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
+                                            {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                        </select></div>
+                                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Tribunal</label>
+                                        <input value={form.tribunal || ''} onChange={e => setForm({ ...form, tribunal: e.target.value })} placeholder="TJBA"
+                                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                                </div>
+                                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Vara</label>
+                                    <input value={form.vara || ''} onChange={e => setForm({ ...form, vara: e.target.value })} placeholder="2ª Vara Cível"
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+
+                                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Cliente Vinculado</label>
+                                    <select value={form.cliente_id || ''} onChange={e => setForm({ ...form, cliente_id: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
+                                        <option value="">Nenhum</option>
+                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.nome} {c.tipo_pessoa === 'juridica' ? '(PJ)' : '(PF)'}</option>)}
+                                    </select></div>
+
+                                <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Descrição</label>
+                                    <textarea value={form.descricao || ''} onChange={e => setForm({ ...form, descricao: e.target.value })} rows={3}
+                                        className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none" /></div>
+                            </div>
+                            <div className="flex gap-3 mt-6">
+                                <button onClick={() => setShowModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 py-2.5 rounded-lg transition-all font-medium">Cancelar</button>
+                                <button onClick={handleSave} disabled={saving || !form.numero || !form.titulo}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+                                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : 'Salvar'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Título *</label>
-                        <input value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} placeholder="Indenização por danos morais"
-                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Status</label>
-                            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CasoStatus })}
-                                className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
-                                {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                            </select></div>
-                        <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Tribunal</label>
-                            <input value={form.tribunal || ''} onChange={e => setForm({ ...form, tribunal: e.target.value })} placeholder="TJBA"
-                                className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                )
+            }
+
+            {/* Case Chat Drawer */}
+            {
+                chatCaso && (
+                    <div className="fixed inset-0 z-50 flex">
+                        <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setChatCaso(null)} />
+                        <div className="w-[420px] bg-gray-50 dark:bg-zinc-950 border-l border-gray-200 dark:border-zinc-800 shadow-2xl">
+                            <CaseChatPanel casoId={chatCaso.id} casoTitulo={chatCaso.titulo} onClose={() => setChatCaso(null)} />
+                        </div>
                     </div>
-                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Vara</label>
-                        <input value={form.vara || ''} onChange={e => setForm({ ...form, vara: e.target.value })} placeholder="2ª Vara Cível"
-                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                )
+            }
 
-                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Cliente Vinculado</label>
-                        <select value={form.cliente_id || ''} onChange={e => setForm({ ...form, cliente_id: e.target.value })}
-                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600">
-                            <option value="">Nenhum</option>
-                            {clientes.map(c => <option key={c.id} value={c.id}>{c.nome} {c.tipo_pessoa === 'juridica' ? '(PJ)' : '(PF)'}</option>)}
-                        </select></div>
-
-                    <div><label className="block text-sm text-gray-700 dark:text-zinc-300 mb-1">Descrição</label>
-                        <textarea value={form.descricao || ''} onChange={e => setForm({ ...form, descricao: e.target.value })} rows={3}
-                            className="w-full bg-gray-50 dark:bg-zinc-800/50 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none" /></div>
-                </div>
-                <div className="flex gap-3 mt-6">
-                    <button onClick={() => setShowModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 py-2.5 rounded-lg transition-all font-medium">Cancelar</button>
-                    <button onClick={handleSave} disabled={saving || !form.numero || !form.titulo}
-                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2">
-                        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : 'Salvar'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-{/* Case Chat Drawer */ }
-{
-    chatCaso && (
-        <div className="fixed inset-0 z-50 flex">
-            <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setChatCaso(null)} />
-            <div className="w-[420px] bg-gray-50 dark:bg-zinc-950 border-l border-gray-200 dark:border-zinc-800 shadow-2xl">
-                <CaseChatPanel casoId={chatCaso.id} casoTitulo={chatCaso.titulo} onClose={() => setChatCaso(null)} />
-            </div>
-        </div>
-    )
-}
-
-{/* Document Panel */ }
-{
-    activePanelCaso && (
-        <DocumentPanel
-            entityType="caso"
-            entityId={activePanelCaso.id}
-            entityName={activePanelCaso.titulo}
-            onClose={() => setActivePanelCaso(null)}
-        />
-        />
-      )
-}
-    </div >
-  );
+            {/* Document Panel */}
+            {
+                activePanelCaso && (
+                    <DocumentPanel
+                        entityType="caso"
+                        entityId={activePanelCaso.id}
+                        entityName={activePanelCaso.titulo}
+                        onClose={() => setActivePanelCaso(null)}
+                    />
+                )
+            }
+        </div >
+    );
 };
 
 export default CasosPage;

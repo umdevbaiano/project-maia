@@ -7,10 +7,13 @@ from typing import Optional
 
 import bcrypt
 import jwt
+import random
+import string
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from config import get_settings
+from core.notifications.email_sender import send_email
 from models.user import (
     UserRole,
     RegisterWorkspaceRequest,
@@ -23,6 +26,7 @@ from models.user import (
 WORKSPACES_COLLECTION = "workspaces"
 USERS_COLLECTION = "users"
 INVITES_COLLECTION = "invites"
+OTPS_COLLECTION = "otps"
 
 
 # --- Password Helpers ---
@@ -68,15 +72,72 @@ def verify_jwt_token(token: str) -> Optional[dict]:
 
 # --- Registration ---
 
-async def register_workspace(
+async def request_registration_code(
     db: AsyncIOMotorDatabase,
     request: RegisterWorkspaceRequest,
+) -> dict:
+    """
+    Step 1 of registration: Generates OTP, stores it temporarily,
+    and sends via Email. Returns success message.
+    """
+    existing = await db[USERS_COLLECTION].find_one({"email": request.admin_email})
+    if existing:
+        raise ValueError("E-mail já cadastrado.")
+
+    # Generate 6-digit OTP
+    code = "".join(random.choices(string.digits, k=6))
+    
+    # Store in OTPs collection with 10 min expiration
+    otp_doc = {
+        "email": request.admin_email,
+        "code": code,
+        "payload": request.model_dump(),
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(minutes=10)
+    }
+    
+    # Upsert to prevent multiple valid OTPs for same email
+    await db[OTPS_COLLECTION].update_one(
+        {"email": request.admin_email},
+        {"$set": otp_doc},
+        upsert=True
+    )
+    
+    # Send Email
+    subject = "MAIA - Código de Verificação"
+    body_text = f"Olá {request.admin_name},\n\nSeu código de verificação para criar o escritório {request.workspace_name} é: {code}\n\nEste código expira em 10 minutos."
+    body_html = f"<html><body><h3>Olá {request.admin_name},</h3><p>Seu código de verificação para criar o escritório <b>{request.workspace_name}</b> é: <br><br><h2>{code}</h2><br><br>Este código expira em 10 minutos.</p></body></html>"
+    
+    await send_email(request.admin_email, subject, body_text, body_html)
+    
+    return {"message": "Código de verificação enviado para o e-mail."}
+
+
+async def register_workspace(
+    db: AsyncIOMotorDatabase,
+    email: str,
+    code: str,
 ) -> TokenResponse:
     """
-    Register a new workspace with an admin user (RF-01).
+    Step 2 of registration: Verifies OTP and completes registration.
     Returns a JWT token for immediate login.
     """
-    # Check if email already exists
+    # Verify OTP
+    otp_doc = await db[OTPS_COLLECTION].find_one({"email": email})
+    if not otp_doc:
+        raise ValueError("Código inválido ou expirado.")
+        
+    if otp_doc["code"] != code:
+        raise ValueError("Código incorreto.")
+        
+    if datetime.utcnow() > otp_doc["expires_at"]:
+        await db[OTPS_COLLECTION].delete_one({"email": email})
+        raise ValueError("Código expirado. Solicite um novo.")
+        
+    request_data = otp_doc["payload"]
+    request = RegisterWorkspaceRequest(**request_data)
+    
+    # Check again if email already exists
     existing = await db[USERS_COLLECTION].find_one({"email": request.admin_email})
     if existing:
         raise ValueError("E-mail já cadastrado.")
@@ -106,6 +167,9 @@ async def register_workspace(
 
     # Generate JWT
     token = create_jwt_token(user_id, workspace_id, UserRole.ADMIN.value)
+
+    # Delete OTP
+    await db[OTPS_COLLECTION].delete_one({"email": email})
 
     return TokenResponse(
         access_token=token,

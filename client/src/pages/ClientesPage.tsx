@@ -19,6 +19,22 @@ const maskDocument = (doc: string | undefined, tipo: TipoPessoa) => {
   return '***' + doc.slice(-4);
 };
 
+const isValidCPF = (cpf: string) => {
+  const c = cpf.replace(/[^\d]+/g, '');
+  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(c.charAt(i)) * (10 - i);
+  let rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(c.charAt(9))) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(c.charAt(i)) * (11 - i);
+  rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(c.charAt(10))) return false;
+  return true;
+};
+
 const ClientesPage: React.FC = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +58,24 @@ const ClientesPage: React.FC = () => {
   useEffect(() => { fetch(); }, [search]);
 
   const handleSave = async () => {
+    if (!form.nome.trim()) {
+      alert("Por favor, preencha o nome do cliente.");
+      return;
+    }
+    if (form.documento && form.tipo_pessoa === 'fisica') {
+      if (!isValidCPF(form.documento)) {
+        alert("Por favor, insira um CPF válido.");
+        return;
+      }
+    }
+    if (form.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email)) {
+        alert("Por favor, insira um e-mail válido contendo '@'.");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (editing) { await api.put(`/clientes/${editing.id}`, form); }
@@ -79,7 +113,7 @@ const ClientesPage: React.FC = () => {
 
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 28, { align: 'center' });
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, pageWidth / 2, 28, { align: 'center' });
 
       // Dados do Cliente
       doc.setFontSize(14);
@@ -114,7 +148,7 @@ const ClientesPage: React.FC = () => {
             c.titulo,
             c.numero || 'Sem número',
             c.status?.toUpperCase() || '-',
-            new Date(c.created_at).toLocaleDateString('pt-BR')
+            new Date(c.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
           ]),
           theme: 'striped',
           headStyles: { fillColor: [59, 130, 246] },
@@ -137,7 +171,7 @@ const ClientesPage: React.FC = () => {
           head: [['Nome do Arquivo', 'Data de Upload', 'Tamanho']],
           body: data.documentos.map((d: any) => [
             d.filename,
-            new Date(d.upload_date).toLocaleDateString('pt-BR'),
+            new Date(d.upload_date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
             d.size ? `${(d.size / 1024).toFixed(1)} KB` : '-'
           ]),
           theme: 'striped',
@@ -150,7 +184,16 @@ const ClientesPage: React.FC = () => {
       }
 
       // Salvar PDF
-      doc.save(`Relatorio_Cliente_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
+      const pdfBlob = doc.output('blob');
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = cliente.nome.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+      link.setAttribute('download', `Relatorio_Cliente_${safeName}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
 
     } catch (err) {
       console.error("Erro ao gerar PDF:", err);

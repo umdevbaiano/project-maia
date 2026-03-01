@@ -84,19 +84,26 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
             const decoder = new TextDecoder();
             if (!reader) throw new Error('No reader available');
 
+            // Read stream
             let buffer = '';
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n\n');
+                const lines = buffer.split('\n');
+
+                // Keep the last partial line in the buffer
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
-                    if (!line.startsWith('data: ')) continue;
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
                     try {
-                        const data = JSON.parse(line.slice(6));
+                        const data = JSON.parse(trimmedLine.slice(6));
+
                         if (data.chunk) {
                             setMessages(prev =>
                                 prev.map(msg =>
@@ -109,13 +116,13 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                         if (data.done) {
                             setMessages(prev =>
                                 prev.map(msg =>
-                                    msg.id === streamingId ? { ...msg, id: `ai-${Date.now()}` } : msg
+                                    msg.id === streamingId ? { ...msg, id: `ai-${Date.now()}`, content: data.reply } : msg
                                 )
                             );
                         }
                         if (data.error) throw new Error(data.error);
-                    } catch {
-                        // Skip malformed SSE lines
+                    } catch (parseErr) {
+                        // Skip malformed SSE lines silently
                     }
                 }
             }
@@ -191,17 +198,26 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                     </div>
                 ) : messages.map(msg => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] px-3.5 py-2.5 rounded-xl text-[0.85rem] leading-[1.5] whitespace-pre-wrap ${msg.role === 'user'
-                            ? 'bg-gradient-to-br from-violet-600 to-violet-700 text-white'
-                            : 'bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-zinc-100'
+                        <div className={`p-3 rounded-2xl max-w-[85%] ${msg.role === 'user'
+                            ? 'bg-violet-600 dark:bg-violet-500 text-white rounded-br-none shadow-sm'
+                            : 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 border border-gray-100 dark:border-white/10 rounded-bl-none shadow-sm'
                             }`}>
-                            {msg.role === 'user' ? msg.content : (
-                                <div className="markdown-chat">
+
+                            {msg.id && msg.id.toString().startsWith('streaming-') && msg.content === '' ? (
+                                <div className="flex items-center gap-3 py-1">
+                                    <div className="flex gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce [animation-delay:-0.3s]"></div>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce [animation-delay:-0.15s]"></div>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce"></div>
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Buscando no processo...</span>
+                                </div>
+                            ) : (
+                                <div className="prose dark:prose-invert prose-p:leading-relaxed prose-pre:bg-gray-800 prose-pre:text-gray-100 max-w-none text-sm font-[400] tracking-wide whitespace-pre-wrap">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                 </div>
                             )}
-                        </div>
-                    </div>
+                        </div>                    </div>
                 ))}
                 {sending && (
                     <div className="flex justify-start">

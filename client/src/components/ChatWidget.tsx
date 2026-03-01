@@ -57,46 +57,88 @@ const ChatWidget: React.FC = () => {
     setInputValue('');
     setIsLoading(true);
 
-    // Add "typing" indicator
+    // Add streaming AI message placeholder
+    const streamingId = `streaming-${Date.now()}`;
     const typingMessage: ChatMessage = {
-      id: 'typing',
+      id: streamingId,
       role: 'ai',
-      content: 'Digitando...',
+      content: '',
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, typingMessage]);
 
     try {
-      const response = await chatApi.sendQuickMessage({
-        currentMessage: userMessage.content,
+      const token = localStorage.getItem('maia_token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ currentMessage: userMessage.content }),
       });
 
-      // Remove typing indicator and add AI response
-      setMessages((prev) => {
-        const filtered = prev.filter((msg) => msg.id !== 'typing');
-        return [
-          ...filtered,
-          {
-            role: 'ai',
-            content: response.reply,
-            timestamp: new Date().toISOString(),
-          },
-        ];
-      });
+      if (!response.ok) throw new Error('Stream request failed');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('No reader available');
+
+      // Read stream
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+
+        // Keep the last partial line in the buffer
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(trimmedLine.slice(6));
+
+            if (data.chunk) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingId
+                    ? { ...msg, content: msg.content + data.chunk }
+                    : msg
+                )
+              );
+            }
+            if (data.done) {
+              // Complete streaming message
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingId ? { ...msg, id: `ai-${Date.now()}`, content: data.reply } : msg
+                )
+              );
+            }
+            if (data.error) {
+              throw new Error(data.error);
+            }
+          } catch (parseErr) {
+            // Skip malformed SSE lines silently
+          }
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Remove typing indicator and show error
-      setMessages((prev) => {
-        const filtered = prev.filter((msg) => msg.id !== 'typing');
-        return [
-          ...filtered,
-          {
-            role: 'ai',
-            content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
-            timestamp: new Date().toISOString(),
-          },
-        ];
-      });
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingId
+            ? { ...msg, id: `err-${Date.now()}`, content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.' }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -185,13 +227,16 @@ const ChatWidget: React.FC = () => {
                   : 'bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-100'
                   }`}
               >
-                {message.id === 'typing' ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">{message.content}</span>
+                {message.id && message.id.toString().startsWith('streaming-') && message.content === '' ? (
+                  <div className="flex items-center gap-2 py-1">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce [animation-delay:-0.3s]"></div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce [animation-delay:-0.15s]"></div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce"></div>
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-sm leading-relaxed prose dark:prose-invert prose-sm max-w-none">
+                  <div className="text-sm leading-relaxed prose dark:prose-invert prose-sm max-w-none whitespace-pre-wrap">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   </div>
                 )}

@@ -2,7 +2,6 @@
 Maia Platform — Auth Middleware
 FastAPI dependencies for JWT validation and RBAC (RF-05, RNF-04).
 """
-from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

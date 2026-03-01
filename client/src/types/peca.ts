@@ -6,6 +6,8 @@ export interface Peca {
     conteudo: string;
     caso_id?: string;
     caso_titulo?: string;
+    cliente_id?: string;
+    cliente_nome?: string;
     workspace_id: string;
     created_at: string;
 }

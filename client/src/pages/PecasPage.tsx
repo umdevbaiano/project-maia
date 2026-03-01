@@ -153,11 +153,18 @@ export default function PecasPage() {
             });
             let filename = `peca_${pecaId}.docx`;
             const disposition = response.headers['content-disposition'];
-            if (disposition && disposition.indexOf('filename') !== -1) {
-                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-                if (matches != null && matches[1]) {
-                    filename = matches[1].replace(/['"]/g, '');
-                    filename = decodeURIComponent(filename);
+            if (disposition) {
+                if (disposition.includes('filename*=')) {
+                    const matches = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition);
+                    if (matches && matches[1]) {
+                        filename = decodeURIComponent(matches[1]);
+                    }
+                } else if (disposition.includes('filename=')) {
+                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                        filename = decodeURIComponent(filename);
+                    }
                 }
             }
 
@@ -335,7 +342,7 @@ export default function PecasPage() {
                                 </button>
                             </div>
                             <div style={{ fontSize: '0.75rem', opacity: 0.4, marginTop: '0.5rem' }}>
-                                {new Date(p.created_at).toLocaleString('pt-BR')}
+                                {new Date(p.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                             </div>
                         </div>
                     ))}
@@ -446,46 +453,48 @@ export default function PecasPage() {
                                         >
                                             {copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar</>}
                                         </button>
-                                    </div>
+                                    </>
+                                )}
                             </div>
-
-                            {/* Doc Content */}
-                            {isEditing ? (
-                                <textarea
-                                    value={editedContent}
-                                    onChange={e => setEditedContent(e.target.value)}
-                                    style={{
-                                        flex: 1, padding: '1.5rem 2rem', background: 'transparent',
-                                        border: 'none', color: '#fff', fontSize: '0.95rem',
-                                        fontFamily: '"JetBrains Mono", "Courier New", monospace', resize: 'none',
-                                        lineHeight: 1.6, outline: 'none'
-                                    }}
-                                />
-                            ) : (
-                                <div className="markdown-peca" style={{
-                                    flex: 1, overflowY: 'auto', padding: '1.5rem 2rem',
-                                    fontSize: '0.95rem', lineHeight: 1.8,
-                                    fontFamily: '"Inter", sans-serif',
-                                }}>
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPeca.conteudo}</ReactMarkdown>
-                                </div>
-                            )}
-                        </>
-                        ) : (
-                        <div style={{
-                            flex: 1, display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', justifyContent: 'center', opacity: 0.3,
-                        }}>
-                            <FileText size={64} style={{ marginBottom: '1rem' }} />
-                            <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Selecione ou gere uma peça</p>
-                            <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                                A Maia vai gerar o documento com base na legislação brasileira
-                            </p>
                         </div>
-                    )}
-                    </div>
 
-                <style>{`
+                        {/* Doc Content */}
+                        {isEditing ? (
+                            <textarea
+                                value={editedContent}
+                                onChange={e => setEditedContent(e.target.value)}
+                                style={{
+                                    flex: 1, padding: '1.5rem 2rem', background: 'transparent',
+                                    border: 'none', color: '#fff', fontSize: '0.95rem',
+                                    fontFamily: '"JetBrains Mono", "Courier New", monospace', resize: 'none',
+                                    lineHeight: 1.6, outline: 'none'
+                                }}
+                            />
+                        ) : (
+                            <div className="markdown-peca" style={{
+                                flex: 1, overflowY: 'auto', padding: '1.5rem 2rem',
+                                fontSize: '0.95rem', lineHeight: 1.8,
+                                fontFamily: '"Inter", sans-serif',
+                            }}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPeca.conteudo}</ReactMarkdown>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div style={{
+                        flex: 1, display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', opacity: 0.3,
+                    }}>
+                        <FileText size={64} style={{ marginBottom: '1rem' }} />
+                        <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Selecione ou gere uma peça</p>
+                        <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                            A Maia vai gerar o documento com base na legislação brasileira
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            <style>{`
                     @keyframes spin { to { transform: rotate(360deg); } }
                     .markdown-peca h1 { font-size: 1.3rem; font-weight: 800; margin: 1rem 0 0.5rem; text-align: center; text-transform: uppercase; }
                     .markdown-peca h2 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.35rem; text-transform: uppercase; }
@@ -501,6 +510,6 @@ export default function PecasPage() {
                     .markdown-peca hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0; }
                     .markdown-peca code { background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.85rem; }
                 `}</style>
-            </div>
-            );
+        </div>
+    );
 }

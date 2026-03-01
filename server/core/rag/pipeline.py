@@ -3,14 +3,13 @@ Maia Platform — RAG Pipeline
 Full implementation: text extraction, chunking, embedding, ChromaDB storage & retrieval.
 Supports hybrid retrieval: legal base (global) + workspace documents.
 """
-import io
 from typing import Optional
 
 import chromadb
 import fitz  # PyMuPDF
 
 from config import get_settings
-from core.rag.embeddings import embed_texts, embed_query, get_chroma_embedding_function
+from core.rag.embeddings import get_chroma_embedding_function
 
 
 # Global ChromaDB client (lazy-loaded)

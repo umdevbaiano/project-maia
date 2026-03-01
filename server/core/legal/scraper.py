@@ -2,7 +2,6 @@
 Maia Platform — Legal Scraper
 Scrapes Brazilian federal legislation from planalto.gov.br.
 """
-import re
 import hashlib
 from typing import Optional
 

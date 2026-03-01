@@ -18,7 +18,6 @@ async def check_and_send_deadline_alerts():
     db = get_database()
     now = datetime.utcnow()
     two_days_from_now = (now + timedelta(days=2)).strftime("%Y-%m-%d")
-    today = now.strftime("%Y-%m-%d")
 
     # Find deadlines that are pending, not notified, and due in the next 48h (or overdue)
     query = {

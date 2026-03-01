@@ -5,6 +5,7 @@ All protected by JWT, scoped to workspace.
 """
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from typing import Optional
+from pydantic import BaseModel
 
 from database import get_database
 from middleware import get_current_user
@@ -81,8 +82,6 @@ async def list_documents(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Erro ao listar documentos: {str(e)}")
 
 
-from pydantic import BaseModel
-
 class LinkDocumentRequest(BaseModel):
     cliente_id: Optional[str] = None
     caso_id: Optional[str] = None
@@ -102,7 +101,7 @@ async def link_document(
         await audit_service.log_action(
             db, workspace_id=current_user["_workspace_id"], user_id=current_user["_user_id"],
             user_email=current_user.get("email", ""), action="UPDATE", resource_type="documento",
-            resource_id=doc_id, details=f"Vinculado a Cliente/Caso"
+            resource_id=doc_id, details="Vinculado a Cliente/Caso"
         )
         return result
     except ValueError as e:

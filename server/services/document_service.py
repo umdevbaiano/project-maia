@@ -9,6 +9,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from core.rag import pipeline as rag
+from core.security.encryption import encrypt_field, decrypt_field
 
 COLLECTION_NAME = "documents"
 
@@ -19,6 +20,11 @@ def _serialize_document(doc: dict) -> dict:
         del doc["_id"]
         if isinstance(doc.get("created_at"), datetime):
             doc["created_at"] = doc["created_at"].isoformat()
+        if doc.get("filename"):
+            try:
+                doc["filename"] = decrypt_field(doc["filename"])
+            except Exception:
+                pass
     return doc
 
 
@@ -34,7 +40,7 @@ async def process_document(
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
 
     doc_record = {
-        "filename": filename,
+        "filename": encrypt_field(filename),
         "file_type": ext,
         "size_bytes": len(file_bytes),
         "chunk_count": 0,

@@ -1,6 +1,5 @@
 import re
 import urllib.request
-from typing import Any
 from bs4 import BeautifulSoup
 
 def test_regex():

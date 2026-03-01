@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from core.security.encryption import encrypt_field, decrypt_field
 
 COLLECTION = "prazos"
 
@@ -16,12 +17,23 @@ def _serialize(doc: dict) -> dict:
         for k in ("created_at", "updated_at"):
             if isinstance(doc.get(k), datetime):
                 doc[k] = doc[k].isoformat()
+        for field in ["titulo", "descricao"]:
+            if doc.get(field):
+                try:
+                    doc[field] = decrypt_field(doc[field])
+                except Exception:
+                    pass
     return doc
 
 
 async def create_prazo(db: AsyncIOMotorDatabase, data: dict, workspace_id: str, user_id: str) -> dict:
     now = datetime.utcnow()
-    doc = {**data, "workspace_id": workspace_id, "created_by": user_id, "created_at": now, "updated_at": now}
+    secure_data = data.copy()
+    for field in ["titulo", "descricao"]:
+        if secure_data.get(field):
+            secure_data[field] = encrypt_field(str(secure_data[field]))
+            
+    doc = {**secure_data, "workspace_id": workspace_id, "created_by": user_id, "created_at": now, "updated_at": now}
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
     return _serialize(doc)
@@ -64,6 +76,10 @@ async def update_prazo(db: AsyncIOMotorDatabase, prazo_id: str, workspace_id: st
     update_data = {k: v for k, v in data.items() if v is not None}
     if not update_data:
         return await get_prazo(db, prazo_id, workspace_id)
+        
+    for field in ["titulo", "descricao"]:
+        if update_data.get(field):
+            update_data[field] = encrypt_field(str(update_data[field]))
     
     if "data_limite" in update_data:
         update_data["notified"] = False

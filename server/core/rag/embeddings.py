@@ -3,8 +3,6 @@ Maia Platform — Embeddings Module
 Local embeddings using sentence-transformers (zero API cost).
 Falls back to Google Embedding API if configured.
 """
-from typing import Optional
-import numpy as np
 
 _model = None
 _use_local = True

@@ -14,33 +14,47 @@ from models.user import (
     TokenResponse,
     UserResponse,
     UserRole,
+    VerifyRegistrationRequest,
 )
 from middleware import get_current_user, require_roles
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register")
 async def register_workspace(request: RegisterWorkspaceRequest):
-    """Register a new workspace with admin user (RF-01)."""
+    """Step 1: Request workspace registration and receive OTP via email."""
     try:
         db = get_database()
-        result = await auth_service.register_workspace(db, request)
+        result = await auth_service.request_registration_code(db, request)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao solicitar registro: {str(e)}")
+
+
+@router.post("/register/verify", response_model=TokenResponse)
+async def verify_registration(request: VerifyRegistrationRequest):
+    """Step 2: Verify OTP and complete registration (RF-01)."""
+    try:
+        db = get_database()
+        result = await auth_service.register_workspace(db, request.email, request.code)
         # Audit: register
         await audit_service.log_action(
             db,
-            workspace_id=result.user.workspace_id if hasattr(result, "user") else "",  # type: ignore
-            user_id=result.user.id if hasattr(result, "user") else "",  # type: ignore
-            user_email=request.admin_email,
+            workspace_id=result.user.workspace_id,
+            user_id=result.user.id,
+            user_email=request.email,
             action="REGISTER",
             resource_type="auth",
-            details=f"Workspace: {request.workspace_name}",
+            details=f"Workspace: {result.user.workspace_name}",
         )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao registrar: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao verificar registro: {str(e)}")
 
 
 @router.post("/login", response_model=TokenResponse)

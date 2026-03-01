@@ -135,7 +135,7 @@ const PrazosPage: React.FC = () => {
                                                 {PRIORIDADE_LABELS[prazo.prioridade]}
                                             </span>
                                             <span className={`text-xs ${overdue ? 'text-red-500 dark:text-red-400 font-medium' : urgent ? 'text-orange-500 dark:text-orange-400' : 'text-gray-500 dark:text-zinc-500'}`}>
-                                                📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR')}
+                                                📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                                                 {prazo.status === 'pendente' && (
                                                     overdue ? ` (${Math.abs(days)} dia(s) atrás)` : ` (${days} dia(s))`
                                                 )}

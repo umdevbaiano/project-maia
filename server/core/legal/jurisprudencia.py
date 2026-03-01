@@ -128,6 +128,8 @@ async def search_stj(query: str, page: int = 1, per_page: int = 10) -> dict[str,
         "qtd": per_page,
         "formato": "JSON",
     }
+    
+    results = []
     try:
         async with httpx.AsyncClient(timeout=15, verify=False) as client:
             headers = {**DEFAULT_HEADERS, "Accept": "application/json"}

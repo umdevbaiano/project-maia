@@ -269,7 +269,7 @@ const DashboardPage: React.FC = () => {
                     {prazo.caso_titulo && <p className="text-xs text-gray-500 dark:text-zinc-500">📁 {prazo.caso_titulo}</p>}
                   </div>
                   <span className="text-xs text-orange-400 font-medium whitespace-nowrap">
-                    📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR')}
+                    📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                   </span>
                 </div>
               ))}

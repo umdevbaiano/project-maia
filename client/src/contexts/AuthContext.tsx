@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { User, LoginRequest, RegisterRequest, TokenResponse } from '../types/auth';
+import type { User, LoginRequest, RegisterRequest, VerifyRegistrationRequest, TokenResponse } from '../types/auth';
 import api from '../utils/api';
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (request: LoginRequest) => Promise<void>;
     register: (request: RegisterRequest) => Promise<void>;
+    verifyRegister: (request: VerifyRegistrationRequest) => Promise<void>;
     logout: () => void;
 }
 
@@ -81,7 +82,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [handleAuthSuccess]);
 
     const register = useCallback(async (request: RegisterRequest) => {
-        const response = await api.post<TokenResponse>('/auth/register', request);
+        await api.post('/auth/register', request);
+        // Step 1 success, does not log in yet
+    }, []);
+
+    const verifyRegister = useCallback(async (request: VerifyRegistrationRequest) => {
+        const response = await api.post<TokenResponse>('/auth/register/verify', request);
         handleAuthSuccess(response.data);
     }, [handleAuthSuccess]);
 
@@ -101,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isLoading,
                 login,
                 register,
+                verifyRegister,
                 logout,
             }}
         >
