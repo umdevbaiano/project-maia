@@ -58,6 +58,16 @@ async def update_cliente(cliente_id: str, request: ClienteUpdateRequest, current
     return cliente
 
 
+@router.get("/{cliente_id}/report")
+async def get_cliente_report_endpoint(cliente_id: str, current_user: dict = Depends(get_current_user)):
+    """Busca completa de dados do cliente, processos e documentos para gerar PDF (Fase 17)."""
+    db = get_database()
+    report = await cliente_service.get_cliente_report(db, cliente_id, current_user["_workspace_id"])
+    if not report:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+    return report
+
+
 @router.delete("/{cliente_id}")
 async def delete_cliente(
     cliente_id: str, 

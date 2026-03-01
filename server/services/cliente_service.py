@@ -81,3 +81,40 @@ async def update_cliente(db: AsyncIOMotorDatabase, cliente_id: str, workspace_id
 async def delete_cliente(db: AsyncIOMotorDatabase, cliente_id: str, workspace_id: str) -> bool:
     result = await db[COLLECTION].delete_one({"_id": ObjectId(cliente_id), "workspace_id": workspace_id})
     return result.deleted_count > 0
+
+
+async def get_cliente_report(db: AsyncIOMotorDatabase, cliente_id: str, workspace_id: str) -> Optional[dict]:
+    """Agregador para o Relatório em PDF: Busca Cliente, seus Processos e Documentos."""
+    cliente = await get_cliente(db, cliente_id, workspace_id)
+    if not cliente:
+        return None
+
+    casos = []
+    async for c in db["casos"].find({"cliente_id": str(cliente_id), "workspace_id": workspace_id}).sort("created_at", -1):
+        c["id"] = str(c["_id"])
+        del c["_id"]
+        # Caso a descrição esteja criptografada, descriptografar aqui
+        if c.get("descricao"):
+            try:
+                c["descricao"] = decrypt_field(c["descricao"])
+            except Exception:
+                pass
+        if isinstance(c.get("created_at"), datetime):
+            c["created_at"] = c["created_at"].isoformat()
+        if isinstance(c.get("updated_at"), datetime):
+            c["updated_at"] = c["updated_at"].isoformat()
+        casos.append(c)
+
+    documentos = []
+    async for d in db["documentos"].find({"cliente_id": str(cliente_id), "workspace_id": workspace_id}).sort("upload_date", -1):
+        d["id"] = str(d["_id"])
+        del d["_id"]
+        if isinstance(d.get("upload_date"), datetime):
+            d["upload_date"] = d["upload_date"].isoformat()
+        documentos.append(d)
+
+    return {
+        "cliente": cliente,
+        "casos": casos,
+        "documentos": documentos
+    }

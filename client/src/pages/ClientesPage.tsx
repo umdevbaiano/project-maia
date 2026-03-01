@@ -3,6 +3,8 @@ import { Users, Plus, Search, Trash2, Edit3, X, Loader2, User, Building2, FileTe
 import DocumentPanel from '../components/DocumentPanel';
 import api from '../utils/api';
 import type { Cliente, ClienteCreateRequest, TipoPessoa } from '../types/cliente';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const maskDocument = (doc: string | undefined, tipo: TipoPessoa) => {
   if (!doc) return '';
@@ -25,6 +27,7 @@ const ClientesPage: React.FC = () => {
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [form, setForm] = useState<ClienteCreateRequest>({ nome: '', tipo_pessoa: 'fisica' });
   const [saving, setSaving] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [activePanelCliente, setActivePanelCliente] = useState<{ id: string, nome: string } | null>(null);
 
   const fetch = async () => {
@@ -59,6 +62,102 @@ const ClientesPage: React.FC = () => {
     setEditing(c);
     setForm({ nome: c.nome, tipo_pessoa: c.tipo_pessoa, documento: c.documento || '', email: c.email || '', telefone: c.telefone || '', endereco: c.endereco || '', observacoes: c.observacoes || '' });
     setShowModal(true);
+  };
+
+  const generatePDFReport = async (cliente: Cliente) => {
+    setExportingId(cliente.id);
+    try {
+      const res = await api.get(`/clientes/${cliente.id}/report`);
+      const data = res.data;
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+
+      // Cabeçalho
+      doc.setFontSize(20);
+      doc.text('Relatório Consolidado do Cliente', pageWidth / 2, 20, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 28, { align: 'center' });
+
+      // Dados do Cliente
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text('1. Informações Cadastrais', 14, 45);
+
+      autoTable(doc, {
+        startY: 50,
+        theme: 'plain',
+        body: [
+          ['Nome:', data.cliente?.nome || '-'],
+          ['Tipo:', data.cliente?.tipo_pessoa === 'juridica' ? 'Pessoa Jurídica' : 'Pessoa Física'],
+          [data.cliente?.tipo_pessoa === 'juridica' ? 'CNPJ:' : 'CPF:', data.cliente?.documento || '-'],
+          ['E-mail:', data.cliente?.email || '-'],
+          ['Telefone:', data.cliente?.telefone || '-'],
+          ['Endereço:', data.cliente?.endereco || '-']
+        ],
+        styles: { fontSize: 10, cellPadding: 2 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 35 } }
+      });
+
+      // Processos (Casos)
+      let currentY = (doc as any).lastAutoTable.finalY + 15;
+      doc.setFontSize(14);
+      doc.text('2. Processos e Casos Vinculados', 14, currentY);
+
+      if (data.casos && data.casos.length > 0) {
+        autoTable(doc, {
+          startY: currentY + 5,
+          head: [['Título do Processo', 'Número', 'Status', 'Criado em']],
+          body: data.casos.map((c: any) => [
+            c.titulo,
+            c.numero || 'Sem número',
+            c.status?.toUpperCase() || '-',
+            new Date(c.created_at).toLocaleDateString('pt-BR')
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [59, 130, 246] },
+          styles: { fontSize: 9 }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+      } else {
+        doc.setFontSize(10);
+        doc.text('Nenhum processo vinculado a este cliente.', 14, currentY + 8);
+        currentY += 20;
+      }
+
+      // Documentos Anexados
+      doc.setFontSize(14);
+      doc.text('3. Relação de Documentos', 14, currentY);
+
+      if (data.documentos && data.documentos.length > 0) {
+        autoTable(doc, {
+          startY: currentY + 5,
+          head: [['Nome do Arquivo', 'Data de Upload', 'Tamanho']],
+          body: data.documentos.map((d: any) => [
+            d.filename,
+            new Date(d.upload_date).toLocaleDateString('pt-BR'),
+            d.size ? `${(d.size / 1024).toFixed(1)} KB` : '-'
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [99, 102, 241] },
+          styles: { fontSize: 9 }
+        });
+      } else {
+        doc.setFontSize(10);
+        doc.text('Nenhum documento anexado.', 14, currentY + 8);
+      }
+
+      // Salvar PDF
+      doc.save(`Relatorio_Cliente_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
+
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      alert("Não foi possível gerar o relatório. Verifique os logs.");
+    } finally {
+      setExportingId(null);
+    }
   };
 
   return (
@@ -104,9 +203,12 @@ const ClientesPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <button onClick={() => generatePDFReport(c)} disabled={exportingId === c.id} className="text-gray-400 hover:text-emerald-500 dark:text-zinc-400 dark:hover:text-emerald-400 p-1 transition-colors disabled:opacity-50" title="Gerar Relatório PDF">
+                    {exportingId === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>}
+                  </button>
                   <button onClick={() => setActivePanelCliente({ id: c.id, nome: c.nome })} className="text-gray-400 hover:text-purple-500 dark:text-zinc-400 dark:hover:text-purple-400 p-1 transition-colors" title="Ver Documentos"><FileText className="w-4 h-4" /></button>
-                  <button onClick={() => openEdit(c)} className="text-gray-400 hover:text-blue-500 dark:text-zinc-400 dark:hover:text-blue-400 p-1"><Edit3 className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(c.id)} className="text-gray-400 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 p-1"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => openEdit(c)} className="text-gray-400 hover:text-blue-500 dark:text-zinc-400 dark:hover:text-blue-400 p-1" title="Editar Cliente"><Edit3 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(c.id)} className="text-gray-400 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 p-1" title="Excluir"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
               {c.documento && <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1" title={c.documento}>📄 {maskDocument(c.documento, c.tipo_pessoa)}</p>}
@@ -160,23 +262,18 @@ const ClientesPage: React.FC = () => {
             </div>
           </div>
         </div>
-            </div>
-          </div >
-        </div >
       )}
 
-{/* Document Panel */ }
-{
-  activePanelCliente && (
-    <DocumentPanel
-      entityType="cliente"
-      entityId={activePanelCliente.id}
-      entityName={activePanelCliente.nome}
-      onClose={() => setActivePanelCliente(null)}
-    />
-  )
-}
-    </div >
+      {/* Document Panel */}
+      {activePanelCliente && (
+        <DocumentPanel
+          entityType="cliente"
+          entityId={activePanelCliente.id}
+          entityName={activePanelCliente.nome}
+          onClose={() => setActivePanelCliente(null)}
+        />
+      )}
+    </div>
   );
 };
 

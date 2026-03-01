@@ -136,9 +136,9 @@ const CasosPage: React.FC = () => {
                             ))}
                     </tbody>
                 </table>
-                </div>
-    )
-}
+                </table>
+            </div >
+            )}
 
 {/* Modal */ }
 {
@@ -221,10 +221,11 @@ const CasosPage: React.FC = () => {
             entityName={activePanelCaso.titulo}
             onClose={() => setActivePanelCaso(null)}
         />
-    )
+        />
+      )
 }
-        </div >
-    );
+    </div >
+  );
 };
 
 export default CasosPage;
