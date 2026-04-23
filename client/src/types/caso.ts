@@ -13,6 +13,13 @@ export interface Caso {
     tribunal?: string;
     vara?: string;
     descricao?: string;
+    predictive_analytics?: {
+        score: number;
+        label: string;
+        justificativa: string;
+        riscos: string[];
+        recomendacoes: string[];
+    };
     workspace_id: string;
     created_at: string;
     updated_at: string;

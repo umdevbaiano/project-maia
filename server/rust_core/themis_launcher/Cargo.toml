@@ -1,0 +1,7 @@
+[package]
+name = "themis_launcher"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Nenhuma dependencia gigante de 3rd party para garantir que o .exe tenha apenas alguns Kilobytes!

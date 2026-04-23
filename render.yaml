@@ -1,0 +1,65 @@
+# =========================================================================
+# MAIA PLATFORM - INFRASTRUCTURE AS CODE (Render Blueprint)
+# =========================================================================
+# Este arquivo automatiza a criação do ambiente na Render com 1 clique.
+#
+# COMO USAR:
+# 1. No painel da Render, vá em "Blueprints" > "New Blueprint Instance"
+# 2. Conecte ao repositório do Github.
+# 3. Ele lerá este arquivo e criará os Bancos e a API automaticamente!
+
+services:
+  # 1. API PRINCIPAL DA MAIA (Serviço Web Público)
+  - type: web
+    name: maia-backend
+    env: docker
+    dockerContext: ./server
+    dockerfilePath: ./server/Dockerfile
+    region: ohio # Altere para frankfurt ou oregon se preferir
+    plan: starter # Starter ($7/mês) sugerido para processamento de IA/Python
+    healthCheckPath: /health # Supondo que você crie/tenha uma rota /health ou / na sua API
+    envVars:
+      - key: MONGODB_URL
+        fromService:
+          type: pserv
+          name: maia-mongodb
+          property: connectionString
+      - key: CHROMA_URL
+        value: http://maia-chromadb:8000
+      - key: GEMINI_API_KEY
+        sync: false # Você preencherá no painel manualmente depois (Segurança)
+      - key: JWT_SECRET
+        sync: false # Preencher manualmente depois (Use a chave gerada antes)
+      - key: ENCRYPTION_KEY
+        sync: false # Preencher manualmente depois
+
+  # 2. BANCO DE DADOS (MongoDB Privado via Docker)
+  - type: pserv # Serviço Privado (Não acessível da internet direta, apenas pelo Backend)
+    name: maia-mongodb
+    env: docker
+    image:
+      url: mongo:7.0
+    disk:
+      name: mongodb-data
+      mountPath: /data/db
+      sizeGB: 10
+    envVars:
+      - key: MONGO_INITDB_DATABASE
+        value: vettalaw
+      - key: MONGO_INITDB_ROOT_USERNAME
+        value: maia_admin
+      - key: MONGO_INITDB_ROOT_PASSWORD
+        generateValue: true # Render vai criar uma senha forte aleatória
+      - key: connectionString
+        value: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@maia-mongodb:27017/vettalaw?authSource=admin
+
+  # 3. BANCO DE MEMÓRIA VETORIAL (ChromaDB Privado)
+  - type: pserv
+    name: maia-chromadb
+    env: docker
+    image:
+      url: chromadb/chroma:0.6.3
+    disk:
+      name: chromadb-data
+      mountPath: /chroma/chroma
+      sizeGB: 10

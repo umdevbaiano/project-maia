@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "vetta_dlp",
+    "vetta_sign_bridge",
+    "sentinel_monitor",
+    "themis_launcher"
+]
+resolver = "2"

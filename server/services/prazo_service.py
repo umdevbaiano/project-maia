@@ -1,14 +1,10 @@
-"""
-Maia Platform — Deadline Service
-"""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from core.security.encryption import encrypt_field, decrypt_field
 
 COLLECTION = "prazos"
-
 
 def _serialize(doc: dict) -> dict:
     if doc:
@@ -25,9 +21,8 @@ def _serialize(doc: dict) -> dict:
                     pass
     return doc
 
-
 async def create_prazo(db: AsyncIOMotorDatabase, data: dict, workspace_id: str, user_id: str) -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     secure_data = data.copy()
     for field in ["titulo", "descricao"]:
         if secure_data.get(field):
@@ -37,7 +32,6 @@ async def create_prazo(db: AsyncIOMotorDatabase, data: dict, workspace_id: str, 
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
     return _serialize(doc)
-
 
 async def list_prazos(
     db: AsyncIOMotorDatabase,
@@ -53,7 +47,6 @@ async def list_prazos(
 
     prazos = []
     async for doc in db[COLLECTION].find(query).sort("data_limite", 1):
-        # Join case title
         if doc.get("caso_id"):
             try:
                 caso = await db["casos"].find_one({"_id": ObjectId(doc["caso_id"])})
@@ -63,14 +56,12 @@ async def list_prazos(
         prazos.append(_serialize(doc))
     return prazos
 
-
 async def get_prazo(db: AsyncIOMotorDatabase, prazo_id: str, workspace_id: str) -> Optional[dict]:
     try:
         doc = await db[COLLECTION].find_one({"_id": ObjectId(prazo_id), "workspace_id": workspace_id})
         return _serialize(doc) if doc else None
     except Exception:
         return None
-
 
 async def update_prazo(db: AsyncIOMotorDatabase, prazo_id: str, workspace_id: str, data: dict) -> Optional[dict]:
     update_data = {k: v for k, v in data.items() if v is not None}
@@ -84,28 +75,22 @@ async def update_prazo(db: AsyncIOMotorDatabase, prazo_id: str, workspace_id: st
     if "data_limite" in update_data:
         update_data["notified"] = False
         
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
     await db[COLLECTION].update_one(
         {"_id": ObjectId(prazo_id), "workspace_id": workspace_id},
         {"$set": update_data},
     )
     return await get_prazo(db, prazo_id, workspace_id)
 
-
 async def delete_prazo(db: AsyncIOMotorDatabase, prazo_id: str, workspace_id: str) -> bool:
     result = await db[COLLECTION].delete_one({"_id": ObjectId(prazo_id), "workspace_id": workspace_id})
     return result.deleted_count > 0
 
-
 async def get_dashboard_alerts(db: AsyncIOMotorDatabase, workspace_id: str) -> dict:
-    """
-    Return upcoming (next 7 days) and overdue deadlines for dashboard alerts (RF-32).
-    """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     seven_days = (now + timedelta(days=7)).strftime("%Y-%m-%d")
     today = now.strftime("%Y-%m-%d")
 
-    # Overdue: pendente + data_limite < today
     overdue = []
     async for doc in db[COLLECTION].find({
         "workspace_id": workspace_id,
@@ -120,7 +105,6 @@ async def get_dashboard_alerts(db: AsyncIOMotorDatabase, workspace_id: str) -> d
                 doc["caso_titulo"] = None
         overdue.append(_serialize(doc))
 
-    # Upcoming: pendente + today <= data_limite <= today+7
     upcoming = []
     async for doc in db[COLLECTION].find({
         "workspace_id": workspace_id,

@@ -3,46 +3,77 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: #FAFAFA;
+    --surface: #FFFFFF;
+    --primary: #2563EB;
+    --accent: #38BDF8;
+    --text-main: #0F172A;
+    --text-muted: #475569;
+    --border: #E2E8F0;
+    --glass-bg: rgba(255, 255, 255, 0.4);
+    --glass-border: rgba(0, 0, 0, 0.05);
+  }
+
+  .dark {
+    --background: #090E1A;
+    --surface: #111827;
+    --primary: #3B82F6;
+    --accent: #60A5FA;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(17, 24, 39, 0.5);
+    --glass-border: rgba(255, 255, 255, 0.08);
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900 dark:bg-zinc-950 dark:text-zinc-100 font-sans antialiased;
+    background-color: var(--background);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    @apply antialiased transition-colors duration-300;
   }
 
   * {
-    @apply border-gray-200 dark:border-zinc-800;
-  }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    @apply w-2;
-  }
-
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-zinc-900;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-zinc-700 rounded;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-zinc-600;
+    border-color: var(--border);
   }
 }
 
 @layer components {
-  .card {
-    @apply bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-6;
+  .glass {
+    @apply backdrop-blur-2xl border shadow-sm transition-all duration-300;
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+  }
+  
+  .glass-premium {
+    @apply backdrop-blur-3xl border shadow-2xl transition-all duration-500;
+    background: linear-gradient(135deg, var(--glass-bg), rgba(255,255,255,0.02));
+    border-color: var(--glass-border);
   }
 
-  .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium;
+  .glow-blue {
+    box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3);
   }
 
-  .btn-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-900 dark:text-zinc-100 px-4 py-2 rounded-lg transition-colors font-medium;
+  .bento-card {
+    @apply glass rounded-[2rem] p-8 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:glow-blue active:scale-[0.98] border border-transparent hover:border-blue-500/20;
   }
 
-  .input-field {
-    @apply bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent;
+  .btn-maia-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all duration-200 font-semibold shadow-sm active:scale-95 flex items-center justify-center gap-2;
+  }
+...
+
+  .dark .btn-maia-primary {
+    @apply bg-[#3B82F6] hover:bg-[#2563eb];
+  }
+
+  .btn-maia-ghost {
+    @apply px-4 py-2 text-[#475569] hover:text-[#0F172A] transition-colors rounded-lg font-medium;
+  }
+
+  .dark .btn-maia-ghost {
+    @apply text-[#94A3B8] hover:text-[#F8FAFC];
   }
 }

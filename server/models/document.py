@@ -31,6 +31,7 @@ class DocumentResponse(BaseModel):
     cliente_id: Optional[str] = None
     caso_id: Optional[str] = None
     created_at: str
+    status: Optional[str] = "completed"
 
 
 class DocumentUploadResponse(BaseModel):
@@ -39,3 +40,4 @@ class DocumentUploadResponse(BaseModel):
     filename: str
     chunk_count: int
     message: str
+    status: Optional[str] = "completed"

@@ -1,0 +1,22 @@
+[package]
+name = "maia"
+version = "1.0.0"
+description = "Maia — Software Jurídico de Alta Performance"
+authors = ["Maia Team"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = ["shell-open", "shell-sidecar"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+# by default Tauri runs in the browser-based environment, 
+# but you can also run it in the native window
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

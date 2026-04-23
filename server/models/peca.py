@@ -1,7 +1,3 @@
-"""
-Maia Platform — Peça Jurídica Models
-Types for AI-generated legal documents.
-"""
 from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
@@ -15,6 +11,8 @@ class TipoPeca(str, Enum):
     PETICAO_SIMPLES = "peticao_simples"
     PARECER = "parecer"
     CONTRATO = "contrato"
+    PROCURACAO = "procuracao"
+    DECLARACAO_HIPOSSUFICIENCIA = "declaracao_hipossuficiencia"
 
 
 TIPO_LABELS = {
@@ -25,12 +23,19 @@ TIPO_LABELS = {
     TipoPeca.PETICAO_SIMPLES: "Petição Simples",
     TipoPeca.PARECER: "Parecer Jurídico",
     TipoPeca.CONTRATO: "Contrato",
+    TipoPeca.PROCURACAO: "Procuração",
+    TipoPeca.DECLARACAO_HIPOSSUFICIENCIA: "Declaração de Hipossuficiência",
 }
 
 
 class PecaGenerateRequest(BaseModel):
+    caso_id: str
     tipo: TipoPeca
-    caso_id: Optional[str] = None
+    instrucoes: str = Field(..., min_length=10, max_length=5000)
+
+
+class PecaBundleRequest(BaseModel):
+    caso_id: str
     instrucoes: str = Field(..., min_length=10, max_length=5000)
 
 
@@ -44,6 +49,9 @@ class PecaResponse(BaseModel):
     caso_titulo: Optional[str] = None
     cliente_id: Optional[str] = None
     cliente_nome: Optional[str] = None
+    signature_status: str = "unsigned"
+    signature_id: Optional[str] = None
+    signature_url: Optional[str] = None
     workspace_id: str
     created_at: str
 
@@ -52,3 +60,12 @@ class PecaUpdateRequest(BaseModel):
     conteudo: Optional[str] = None
     caso_id: Optional[str] = None
     cliente_id: Optional[str] = None
+
+
+class SignerInfo(BaseModel):
+    name: str = Field(..., min_length=2, description="Nome do assinante")
+    email: str = Field(..., pattern=r"^\S+@\S+\.\S+$", description="E-mail do assinante")
+
+
+class PecaSignatureRequest(BaseModel):
+    signers: list[SignerInfo]

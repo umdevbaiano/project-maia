@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 
 from core.legal.scraper import scrape_single_law, LAWS_REGISTRY
-from core.rag.pipeline import chunk_by_article, index_legal_chunks
+from core.rag.pipeline import chunk_legal_structurally, index_legal_chunks
 
 # Store hashes in memory (could be persisted to MongoDB for production)
 _law_hashes: dict[str, str] = {}
@@ -32,7 +32,7 @@ async def check_and_update_laws():
                 continue  # No changes
 
             # Law changed or first check — re-index
-            chunks = chunk_by_article(result["text"])
+            chunks = chunk_legal_structurally(result["text"])
             count = index_legal_chunks(result["law_name"], result["law_id"], chunks)
             _law_hashes[law_id] = new_hash
             updated += 1

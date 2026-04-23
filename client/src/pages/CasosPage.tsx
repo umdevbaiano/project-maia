@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Plus, Search, Trash2, Edit3, X, Loader2, MessageSquare, FileText } from 'lucide-react';
+import { Briefcase, Plus, Search, Trash2, Edit3, X, Loader2, MessageSquare, FileText, Clock, Users, Zap } from 'lucide-react';
 import CaseChatPanel from '../components/CaseChatPanel';
 import DocumentPanel from '../components/DocumentPanel';
 import api from '../utils/api';
@@ -20,6 +20,7 @@ const CasosPage: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [chatCaso, setChatCaso] = useState<Caso | null>(null);
     const [activePanelCaso, setActivePanelCaso] = useState<{ id: string, titulo: string } | null>(null);
+    const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
     const fetchCasos = async () => {
         try {
@@ -62,6 +63,19 @@ const CasosPage: React.FC = () => {
         catch (err) { console.error(err); }
     };
 
+    const handleAnalyze = async (id: string) => {
+        setAnalyzingId(id);
+        try {
+            await api.post(`/casos/${id}/analyze`);
+            fetchCasos(); // Refresh to show analytics
+        } catch (err) { 
+            console.error(err);
+            alert('Falha ao gerar análise preditiva. Tente novamente.');
+        } finally {
+            setAnalyzingId(null);
+        }
+    };
+
     const openEdit = (caso: Caso) => {
         setEditingCaso(caso);
         setForm({ numero: caso.numero, titulo: caso.titulo, tipo: caso.tipo, status: caso.status, tribunal: caso.tribunal || '', vara: caso.vara || '', descricao: caso.descricao || '', cliente_id: caso.cliente_id || '' });
@@ -69,77 +83,124 @@ const CasosPage: React.FC = () => {
     };
 
     return (
-        <div className="p-8">
+        <div className="p-8 space-y-8 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                        <Briefcase className="w-7 h-7 text-blue-500" /> Processos
+                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+                            <Briefcase className="w-6 h-6" />
+                        </div>
+                        Gestão de Processos
                     </h1>
-                    <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{casos.length} processo(s) cadastrado(s)</p>
+                    <p className="text-gray-500 dark:text-zinc-500 font-medium mt-1 ml-13">
+                        {casos.length} processos sob sua responsabilidade
+                    </p>
                 </div>
-                <button onClick={() => { setEditingCaso(null); setForm({ numero: '', titulo: '', tipo: 'civel', status: 'em_andamento', cliente_id: '' }); setShowModal(true); }}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-lg shadow-blue-600/20">
+                <button 
+                  onClick={() => { setEditingCaso(null); setForm({ numero: '', titulo: '', tipo: 'civel', status: 'em_andamento', cliente_id: '' }); setShowModal(true); }}
+                  className="btn-maia-primary py-2.5 px-6 shadow-xl shadow-blue-600/20"
+                >
                     <Plus className="w-5 h-5" /> Novo Processo
                 </button>
+            </header>
+
+            {/* Search & Filters */}
+            <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar por número, título ou cliente..." 
+                  value={search} 
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full glass bg-white/50 dark:bg-white/[0.02] border-black/5 dark:border-white/5 rounded-2xl pl-12 pr-4 py-4 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:bg-white dark:focus:bg-white/[0.05] transition-all" 
+                />
             </div>
 
-            {/* Search */}
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-zinc-500" />
-                <input type="text" placeholder="Buscar por número ou título..." value={search} onChange={e => setSearch(e.target.value)}
-                    className="w-full bg-white dark:bg-[#1a1c23] border border-gray-200 dark:border-zinc-800 rounded-lg pl-11 pr-4 py-3 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent" />
-            </div>
-
-            {/* Table */}
+            {/* Content Table */}
             {loading ? (
-                <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
+                <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-blue-600/50" /></div>
             ) : casos.length === 0 ? (
-                <div className="text-center py-20">
-                    <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-zinc-700" />
-                    <p className="text-gray-500 dark:text-zinc-500">Nenhum processo encontrado.</p>
+                <div className="bento-card text-center py-24 bg-white/50 dark:bg-white/[0.02]">
+                    <div className="w-20 h-20 bg-gray-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-6 shrink-0">
+                        <Briefcase className="w-10 h-10 text-gray-400 dark:text-zinc-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhum processo encontrado</h3>
+                    <p className="text-gray-500 dark:text-zinc-500 mt-2 max-w-xs mx-auto">Tente ajustar sua busca ou adicione um novo processo para começar.</p>
                 </div>
             ) : (
-                <div className="bg-white dark:bg-[#1a1c23] border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                        <thead><tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-[#1a1c23]">
-                            <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Número</th>
-                            <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Título</th>
-                            <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Tipo</th>
-                            <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
-                            <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Cliente</th>
-                            <th className="text-right px-6 py-4 text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Ações</th>
-                        </tr></thead>
-                        <tbody>
-                            {casos.map(caso => (
-                                <tr key={caso.id} className="border-b border-gray-200 dark:border-zinc-800/50 bg-white dark:bg-[#1f2128] hover:bg-gray-50 dark:hover:bg-zinc-800/60 transition-colors">
-                                    <td className="px-6 py-4 text-sm font-mono text-gray-700 dark:text-blue-300">{caso.numero}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-medium">{caso.titulo}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-zinc-400">{TIPO_LABELS[caso.tipo] || caso.tipo}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_COLORS[caso.status] || ''}`}>
-                                            {STATUS_LABELS[caso.status] || caso.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-zinc-400">
-                                        {clientes.find(c => c.id === caso.cliente_id)?.nome || '-'}
-                                    </td>
-                                    <td className="text-right px-6 py-4 whitespace-nowrap">
-                                        <button onClick={() => setActivePanelCaso({ id: caso.id, titulo: caso.titulo })} className="text-gray-400 dark:text-zinc-400 hover:text-green-500 dark:hover:text-green-400 p-1 mr-2 transition-colors" title="Ver Documentos"><FileText className="w-4 h-4" /></button>
-                                        <button onClick={() => setChatCaso(caso)} className="text-violet-500/80 hover:text-violet-600 dark:text-violet-400/80 dark:hover:text-violet-300 p-1 mr-2 transition-colors relative group" title="Análise IA do Processo">
-                                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
-                                            </span>
-                                            <MessageSquare className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => openEdit(caso)} className="text-gray-400 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 p-1 mr-2 transition-colors"><Edit3 className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDelete(caso.id)} className="text-gray-400 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 p-1 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                    </td>
+                <div className="bento-card overflow-hidden bg-white/50 dark:bg-white/[0.02] !p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-black/5 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02]">
+                                    <th className="px-6 py-5 text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Identificação</th>
+                                    <th className="px-6 py-5 text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Informações</th>
+                                    <th className="px-6 py-5 text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Tipo / Cliente</th>
+                                    <th className="px-6 py-5 text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest text-center">Status</th>
+                                    <th className="px-6 py-5 text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest text-right whitespace-nowrap">Ações Estratégicas</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-black/5 dark:divide-white/5">
+                                {casos.map(caso => (
+                                    <tr key={caso.id} className="group hover:bg-blue-600/[0.02] dark:hover:bg-blue-400/[0.02] transition-colors">
+                                        <td className="px-6 py-5">
+                                            <div className="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/5 px-2 py-1 rounded-md inline-block mb-1 italic">
+                                                {caso.numero}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                                                <Clock className="w-3 h-3" /> Atualizado recentemente
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors tracking-tight">{caso.titulo}</p>
+                                                {caso.predictive_analytics && (
+                                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[9px] font-black border border-amber-500/10" title={`Probabilidade: ${caso.predictive_analytics.label}`}>
+                                                        <Zap className="w-2.5 h-2.5 fill-current" />
+                                                        {Math.round(caso.predictive_analytics.score * 100)}%
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 dark:text-zinc-500 line-clamp-1 mt-0.5 font-medium">{caso.tribunal} • {caso.vara}</p>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-bold text-gray-700 dark:text-zinc-300 capitalize">{TIPO_LABELS[caso.tipo]}</span>
+                                                <span className="text-[10px] text-gray-500 dark:text-zinc-500 flex items-center gap-1 font-medium mt-0.5">
+                                                    <Users className="w-3 h-3" /> {clientes.find(c => c.id === caso.cliente_id)?.nome || 'Sem cliente'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <span className={`text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-full border ${STATUS_COLORS[caso.status] || ''}`}>
+                                                {STATUS_LABELS[caso.status]}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                  onClick={() => handleAnalyze(caso.id)} 
+                                                  disabled={analyzingId === caso.id}
+                                                  className="p-2 rounded-xl text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all disabled:opacity-50" 
+                                                  title="Análise Preditiva (IA)"
+                                                >
+                                                    {analyzingId === caso.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                                </button>
+                                                <button onClick={() => setChatCaso(caso)} className="p-2 rounded-xl text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-all relative" title="Análise Maia">
+                                                    <MessageSquare className="w-4 h-4 fill-current opacity-20" />
+                                                    <MessageSquare className="w-4 h-4 absolute top-2 left-2" />
+                                                </button>
+                                                <button onClick={() => setActivePanelCaso({ id: caso.id, titulo: caso.titulo })} className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-blue-500 transition-all" title="Ver Documentos"><FileText className="w-4 h-4" /></button>
+                                                <button onClick={() => openEdit(caso)} className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-blue-500 transition-all"><Edit3 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDelete(caso.id)} className="p-2 rounded-xl text-gray-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-all"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )
             }

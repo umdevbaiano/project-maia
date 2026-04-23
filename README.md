@@ -1,264 +1,80 @@
-# VettaLaw - Plataforma Jurídica SaaS MVP
+<div align="center">
+  <img src="./client/public/maia-avatar.png" alt="Maia Logo" width="120" />
+  <h1>Plataforma Maia • Projeto Themis</h1>
+  <p><strong>A Inteligência Artificial Definitiva para a Advocacia de Alta Performance.</strong></p>
 
-VettaLaw é uma plataforma jurídica SaaS moderna, integrada com IA generativa (Maia), projetada para aumentar a produtividade de advogados e escritórios de advocacia.
-
-## 🎯 Características Principais
-
-- **Dashboard Inteligente**: Visão geral de processos, prazos e KPIs
-- **Maia AI Assistant**: Assistente jurídica com Google Gemini
-  - Widget flutuante para consultas rápidas
-  - Interface full-page para trabalho profundo
-- **Dark Mode Profissional**: UI/UX otimizada para produtividade
-- **Histórico Persistente**: Todas as conversas são salvas no MongoDB
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **React 18** com TypeScript
-- **Vite** (build tool)
-- **Tailwind CSS** (styling)
-- **React Router DOM** (routing)
-- **React Markdown** (renderização de conteúdo)
-- **Lucide React** (ícones)
-- **Axios** (HTTP client)
-
-### Backend
-- **FastAPI** (Python web framework)
-- **Motor** (MongoDB async driver)
-- **Google Gemini API** (IA generativa)
-- **Uvicorn** (ASGI server)
-
-### Database
-- **MongoDB** (NoSQL database)
-
-### DevOps
-- **Docker** & **Docker Compose**
-
-## 📋 Pré-requisitos
-
-- Docker e Docker Compose instalados
-- Google Gemini API Key ([obter aqui](https://makersuite.google.com/app/apikey))
-
-## 🚀 Instalação e Execução
-
-### 1. Clone o repositório
-
-```bash
-git clone <repository-url>
-cd vettalaw
-```
-
-### 2. Configure as variáveis de ambiente
-
-Crie um arquivo `.env` na raiz do projeto:
-
-```bash
-cp .env.example .env
-```
-
-Edite o arquivo `.env` e adicione sua chave da API do Google Gemini:
-
-```
-GEMINI_API_KEY=sua_chave_api_aqui
-```
-
-### 3. Inicie os containers Docker
-
-```bash
-docker-compose up -d
-```
-
-Este comando irá:
-- Iniciar o MongoDB na porta 27017
-- Iniciar o backend FastAPI na porta 8000
-- Iniciar o frontend React na porta 5173
-
-### 4. Acesse a aplicação
-
-Abra seu navegador e acesse:
-
-```
-http://localhost:5173
-```
-
-## 📁 Estrutura do Projeto
-
-```
-vettalaw/
-├── server/                 # Backend (FastAPI)
-│   ├── main.py            # API principal
-│   ├── requirements.txt   # Dependências Python
-│   ├── Dockerfile
-│   └── .env.example
-├── client/                # Frontend (React)
-│   ├── src/
-│   │   ├── components/   # Componentes React
-│   │   │   ├── Layout.tsx
-│   │   │   └── ChatWidget.tsx
-│   │   ├── pages/        # Páginas da aplicação
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── ChatPage.tsx
-│   │   │   ├── ClientesPage.tsx
-│   │   │   ├── DocumentosPage.tsx
-│   │   │   └── ConfiguracoesPage.tsx
-│   │   ├── types/        # TypeScript types
-│   │   │   └── chat.ts
-│   │   ├── utils/        # Utilitários
-│   │   │   └── api.ts
-│   │   ├── App.tsx       # Componente principal
-│   │   ├── main.tsx      # Entry point
-│   │   └── index.css     # Estilos globais
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── Dockerfile
-├── docker-compose.yml     # Orquestração Docker
-├── .env.example          # Variáveis de ambiente
-└── README.md             # Este arquivo
-```
-
-## 🔌 API Endpoints
-
-### Backend (http://localhost:8000)
-
-- `GET /` - Health check
-- `GET /chat/history` - Buscar histórico de mensagens
-- `POST /chat/quick` - Enviar mensagem rápida
-- `DELETE /chat/clear` - Limpar histórico
-
-Exemplo de requisição:
-
-```bash
-# Enviar mensagem
-curl -X POST http://localhost:8000/chat/quick \
-  -H "Content-Type: application/json" \
-  -d '{"currentMessage": "Qual o prazo para contestação?"}'
-```
-
-## 🎨 Componentes Principais
-
-### Layout (Layout.tsx)
-- Sidebar fixa com navegação
-- Menu: Dashboard, Maia Chat, Clientes, Documentos
-- Rodapé: Configurações e Logout
-
-### ChatWidget (ChatWidget.tsx)
-- Assistente flutuante (bottom-right)
-- Pop-up de 380x500px
-- Histórico persistente
-- Botão de expandir para full-page
-
-### DashboardPage (DashboardPage.tsx)
-- KPI Cards: Processos, Prazos, Clientes, Taxa de Sucesso
-- Gráfico de evolução de casos
-- Lista de prazos urgentes
-- Atividade recente
-
-### ChatPage (ChatPage.tsx)
-- Interface full-page estilo ChatGPT
-- Renderização de Markdown
-- Input flutuante centralizado
-- Histórico completo de conversas
-
-## 🧪 Desenvolvimento Local (sem Docker)
-
-### Backend
-
-```bash
-cd server
-python -m venv venv
-source venv/bin/activate  # No Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Configure MONGODB_URL e GEMINI_API_KEY
-export MONGODB_URL="mongodb://localhost:27017"
-export GEMINI_API_KEY="sua_chave_aqui"
-
-# Inicie o servidor
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
-## 🔧 Configuração Adicional
-
-### Variáveis de Ambiente
-
-#### Backend (.env ou variáveis de sistema)
-- `MONGODB_URL`: URL do MongoDB (padrão: `mongodb://mongodb:27017`)
-- `GEMINI_API_KEY`: Chave da API do Google Gemini (obrigatório)
-
-#### Frontend
-- `VITE_API_URL`: URL do backend (padrão: `http://localhost:8000`)
-
-## 📝 Roadmap / Próximas Funcionalidades
-
-- [ ] Sistema de autenticação e autorização
-- [ ] Gestão completa de clientes
-- [ ] Gestão de documentos com upload
-- [ ] Sistema de prazos com notificações
-- [ ] Integração com APIs de tribunais
-- [ ] Assinatura digital de documentos
-- [ ] Relatórios e analytics avançados
-- [ ] Modo colaborativo multi-usuário
-
-## 🐛 Troubleshooting
-
-### Problema: Backend não conecta ao MongoDB
-**Solução**: Verifique se o container MongoDB está rodando:
-```bash
-docker ps
-docker logs vettalaw-mongodb
-```
-
-### Problema: Frontend não consegue acessar a API
-**Solução**: Verifique se o CORS está habilitado no backend e se a URL está correta
-
-### Problema: IA não responde
-**Solução**: Verifique se a `GEMINI_API_KEY` está configurada corretamente:
-```bash
-docker logs vettalaw-backend
-```
-
-## 📄 Licença
-
-Este é um projeto MVP para fins acadêmicos e de demonstração.
-
-## 👥 Contribuindo
-
-Contribuições são bem-vindas! Por favor:
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/NovaFuncionalidade`)
-3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/NovaFuncionalidade`)
-5. Abra um Pull Request
-
-## 📧 Suporte
-
-Para questões e suporte, abra uma issue no repositório.
+  <p>
+    <a href="#arquitetura"><img alt="Arquitetura" src="https://img.shields.io/badge/Architecture-FastAPI%20%2B%20React-blue?style=for-the-badge" /></a>
+    <a href="#segurança"><img alt="Segurança" src="https://img.shields.io/badge/Security-LGPD%20%2B%20DLP-green?style=for-the-badge" /></a>
+    <a href="#ia"><img alt="IA" src="https://img.shields.io/badge/Agentes-RAG%20%2B%20RPA-orange?style=for-the-badge" /></a>
+  </p>
+</div>
 
 ---
 
-## 👨‍💻 Autoria e Direitos
+## 🏛️ Sobre o Projeto
 
-Este projeto foi idealizado e desenvolvido integralmente por **Samuel Miranda**.
+A **Plataforma Maia** (núcleo do *Projeto Themis*) não é apenas um "assistente textual". Trata-se de uma infraestrutura assíncrona, robusta e modular projetada para erradicar o trabalho cognitivo repetitivo (processamento de provas, identificação de prazos e preenchimento de portais judiciários).
 
-* **Líder Técnico & Desenvolvedor Full Stack:** Samuel Miranda
-* **Contato:** [LinkedIn](https://www.linkedin.com/in/samuellmiranda)
-* **Status:** MVP (Produto Mínimo Viável) para fins acadêmicos e demonstrativos.
+O sistema inova ao abandonar a dependência cega a modelos genéricos que sofrem de "alucinações judiciais". Ele força os modelos de Inteligência Artificial através de **Grounding Estrito (RAG Híbrido)**, forçando a máquina a ler centenas de páginas de PDFs locais e gerar teses amarradas umbilicalmente ao livro de provas reais inseridas pela equipe.
 
 ---
 
-**© 2026 VettaLaw.** Todos os direitos reservados.
-_A reprodução ou uso comercial deste código sem autorização expressa do autor é estritamente proibida._
+## 🚀 Principais Features
+
+*   ⚖️ **Chat com Grounding (RAG)**: Você conversa diretamente com seus documentos jurídicos (em PDFs). O Motor de IA só retorna teses fundadas nas jurisprudências inseridas na sua base privada.
+*   🤖 **RPA (Robotic Process Automation)**: Integração para protocolo e assinatura automática em portais como e-SAJ e PJe usando tecnologia Playwright.
+*   🛡️ **Vetta DLP (Data Loss Prevention)**: A arquitetura possui um sidecar que "vê e cega" CPFs e dados sigilosos num milissegundo, preservando o sigilo corporativo cliente-advogado a nível **ISO 27001**.
+*   ⏱️ **Dashboard Inteligente e CRM**: Gerenciamento integrado a Tribunais para levantamento automático de Comarcas, Polos Processuais e Alertas Preditivos de Prescrição.
+*   💅 **SaaS Premium UI**: Construída em **React Vite e Tailwind V4**, entregando modo noturno imersivo de altíssimo contraste via filosofia de Design *Glassmorphism*.
 
 ---
 
-**VettaLaw** - Transformando a prática jurídica com tecnologia e IA 🚀⚖️
+## 🏗️ Arquitetura Tecnológica
+
+### Backend (Python)
+- **FastAPI**: Orquestração assíncrona brutal em alta velocidade.
+- **MongoDB + Motor**: Banco de Dados NoSQL escalável com drivers não-bloqueantes.
+- **ChromaDB**: Banco Vetorial operando buscas semânticas instantâneas em contratos milionários.
+
+### Frontend (TypeScript / React)
+- **React 18 + Vite**: SPA ultrarrápida.
+- **Framer Motion + Lucide**: Interfaces orgânicas e reativas.
+- **TailwindCSS**: Utilitários atômicos para estilização consistente e minimalista.
+
+### Hospedagem & Cloud (Vercel + Render)
+A infraestrutura está otimizada sob o conceito de *Continuous Delivery*:
+- **Rosto (Front):** Distribuído na rede CDN Global da Vercel.
+- **Músculo (Back + Bancos):** Conteinerizado nativamente na Render, com Provisionamento de Código via `render.yaml`.
+
+---
+
+## 🖥️ Instalação (Deploy e Modo Desenvolvedor)
+
+### 1. Usando a Render (Nuvem em 1 Clique)
+Na raiz deste repositório encontra-se a automação IaaS (`render.yaml`).
+1. Crie uma conta na [Render](https://render.com).
+2. Vá em **Blueprints** -> **New Blueprint**.
+3. Selecione este repositório. O banco Vetorial, o Serviço Mongo e o Backend Python irão se organizar sozinhos na arquitetura correta e de portas blindadas.
+
+### 2. Rodando Localmente (Docker Compose)
+Se você quer contribuir localmente usando o ecossistema inteiro:
+
+```bash
+# 1. Renomeie o arquivo de senhas
+cp .env.example .env.production
+# (Preencha suas senhas e a GEMINI_API_KEY no arquivo)
+
+# 2. Inicialize tudo (Backend, Frontend, MongoDB, ChromaDB)
+docker compose up -d --build
+```
+*O Backend ficará na porta `8000` e o painel em `5173`.*
+
+---
+
+## 🔒 Postura de Dados (LGPD Compliance)
+
+Desenvolvido rigorosamente sobre os preceitos da LGPD Brasileira (Lei 13.709/18). Todo pipeline de orquestração de texto foi fragmentado de maneira a não reter cópias permanentes expostas em memória Cache. Componentes modulares operam sob criptografia de At-Rest, permitindo implantações completas em formato Zero-Trust local.
+
+---
+*“A advocacia do futuro não se julga pelo volume de petições empilhadas, mas pela inteligência estratégica capaz de controlá-las.”* — Vetta Hub Tecnologia

@@ -1,0 +1,13 @@
+[package]
+name = "vetta_sign_bridge"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "vetta_sign_bridge"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.19.2", features = ["extension-module"] }
+# Aqui utilizaremos PKCS11 bindings localmente. Para o Boilerplate inicial:
+# pkcs11 = "0.5.0"

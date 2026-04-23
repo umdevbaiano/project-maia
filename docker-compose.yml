@@ -4,12 +4,13 @@ services:
     image: mongo:7.0
     container_name: maia-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
+    # Port 27017 NOT exposed externally — internal only via maia-network
     volumes:
       - mongodb_data:/data/db
     environment:
       - MONGO_INITDB_DATABASE=vettalaw
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-maia}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
     networks:
       - maia-network
 
@@ -35,14 +36,19 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_URL=mongodb://${MONGO_USER:-maia}:${MONGO_PASSWORD}@mongodb:27017
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - CHROMA_URL=http://chromadb:8000
     depends_on:
       - mongodb
       - chromadb
     volumes:
       - ./server:/app
+    networks:
+      - maia-network
+
     networks:
       - maia-network
 
@@ -64,6 +70,39 @@ services:
       - maia-network
     depends_on:
       - backend
+
+  # Redis para o DLP Proxy
+  redis-dlp:
+    image: redis:7.2-alpine
+    container_name: maia-redis-dlp
+    restart: unless-stopped
+    networks:
+      - maia-network
+
+  # File Masker Sidecar (Tesseract/Python)
+  file-masker:
+    build:
+      context: ./dlp-proxy/services/file-masker
+      dockerfile: Dockerfile
+    container_name: maia-file-masker
+    restart: unless-stopped
+    networks:
+      - maia-network
+
+  # Vetta Shield (Rust Proxy)
+  vetta-shield:
+    build:
+      context: ./dlp-proxy
+      dockerfile: Dockerfile
+    container_name: vetta-shield-proxy
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Proxy CONNECT
+    depends_on:
+      - redis-dlp
+      - file-masker
+    networks:
+      - maia-network
 
 networks:
   maia-network:

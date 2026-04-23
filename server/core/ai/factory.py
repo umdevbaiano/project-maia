@@ -4,6 +4,7 @@ Single point of configuration for swapping AI providers (RNF-09).
 """
 from core.ai.base import AIProvider
 from core.ai.gemini_provider import GeminiProvider
+from core.ai.fallback import ResilientLLM
 from config import get_settings
 
 
@@ -32,20 +33,14 @@ def get_ai_provider() -> AIProvider:
         return _instance
 
     settings = get_settings()
-    provider_name = settings.AI_PROVIDER.lower()
+    
+    # 1. Initialize Primary Provider (Gemini)
+    primary = GeminiProvider(api_key=settings.GEMINI_API_KEY)
+    
+    # 2. Wrap in ResilientLLM (for future fallbacks)
+    _instance = ResilientLLM(providers=[primary])
 
-    if provider_name not in _PROVIDERS:
-        available = ", ".join(_PROVIDERS.keys())
-        raise ValueError(
-            f"Unknown AI provider '{provider_name}'. Available: {available}"
-        )
-
-    if provider_name == "gemini":
-        _instance = GeminiProvider(api_key=settings.GEMINI_API_KEY)
-    else:
-        raise ValueError(f"Provider '{provider_name}' is registered but not configured in factory.")
-
-    print(f"🤖 AI Provider initialized: {provider_name} ({_instance.get_model_name()})")
+    print(f"🤖 AI Core initialized: {primary.get_model_name()} (Resilient Mode Active)")
     return _instance
 
 

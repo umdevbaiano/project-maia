@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Shield, Search, Filter, ChevronLeft, ChevronRight, LogIn, Plus, Pencil, Trash2, FileDown, Sparkles, MessageSquare, RefreshCw, Upload, UserX, UserPlus } from 'lucide-react';
+import { 
+    Shield, Search, Filter, ChevronLeft, ChevronRight, LogIn, Plus, Pencil, 
+    Trash2, FileDown, Sparkles, MessageSquare, RefreshCw, Upload, UserX, 
+    UserPlus, Calendar, ExternalLink
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
+import { cn } from '../utils/cn';
 
 const ACTION_ICONS: Record<string, any> = {
     LOGIN: LogIn,
@@ -19,19 +25,19 @@ const ACTION_ICONS: Record<string, any> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-    LOGIN: 'text-green-400 bg-green-400/10',
-    REGISTER: 'text-blue-400 bg-blue-400/10',
-    INVITE: 'text-blue-400 bg-blue-400/10',
-    REVOKE: 'text-red-400 bg-red-400/10',
-    CREATE: 'text-emerald-400 bg-emerald-400/10',
-    UPDATE: 'text-amber-400 bg-amber-400/10',
-    DELETE: 'text-red-400 bg-red-400/10',
-    EXPORT: 'text-purple-400 bg-purple-400/10',
-    GENERATE: 'text-violet-400 bg-violet-400/10',
-    CHAT: 'text-cyan-400 bg-cyan-400/10',
-    SYNC: 'text-blue-400 bg-blue-400/10',
-    UPLOAD: 'text-teal-400 bg-teal-400/10',
-    CLEAR: 'text-orange-400 bg-orange-400/10',
+    LOGIN: 'text-emerald-500 bg-emerald-500/10',
+    REGISTER: 'text-blue-500 bg-blue-500/10',
+    INVITE: 'text-blue-500 bg-blue-500/10',
+    REVOKE: 'text-red-500 bg-red-500/10',
+    CREATE: 'text-emerald-500 bg-emerald-500/10',
+    UPDATE: 'text-amber-500 bg-amber-500/10',
+    DELETE: 'text-red-500 bg-red-500/10',
+    EXPORT: 'text-purple-500 bg-purple-500/10',
+    GENERATE: 'text-violet-500 bg-violet-500/10',
+    CHAT: 'text-cyan-500 bg-cyan-500/10',
+    SYNC: 'text-blue-500 bg-blue-500/10',
+    UPLOAD: 'text-teal-500 bg-teal-500/10',
+    CLEAR: 'text-orange-500 bg-orange-500/10',
 };
 
 const RESOURCE_LABELS: Record<string, string> = {
@@ -53,7 +59,21 @@ interface AuditLog {
     resource_id: string;
     details: string;
     timestamp: string;
+    ip_address?: string;
 }
+
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: { staggerChildren: 0.05 }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0 }
+};
 
 const AuditPage = () => {
     const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -62,7 +82,7 @@ const AuditPage = () => {
     const [loading, setLoading] = useState(true);
     const [filterAction, setFilterAction] = useState('');
     const [filterResource, setFilterResource] = useState('');
-    const perPage = 25;
+    const perPage = 15;
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -89,127 +109,192 @@ const AuditPage = () => {
     const formatDate = (isoString: string) => {
         const d = new Date(isoString);
         return d.toLocaleDateString('pt-BR', {
-            day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo'
-        }) + ' às ' + d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
-    // The original formatDate function was removed as per the instruction to replace it with parseDate.
-    // The usage of formatDate in the JSX below will need to be manually updated to parseDate if desired.
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="bg-amber-500/10 p-3 rounded-xl">
-                        <Shield className="w-7 h-7 text-amber-400" />
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+            {/* Header Section */}
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shadow-lg shadow-amber-500/10">
+                            <Shield className="w-7 h-7" />
+                        </div>
+                        <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Audit Log</h1>
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Auditoria</h1>
-                        <p className="text-gray-500 dark:text-zinc-400 text-sm">Registro de todas as ações na plataforma</p>
-                    </div>
+                    <p className="text-gray-500 dark:text-zinc-500 font-medium ml-15">Rastreabilidade total e conformidade em tempo real</p>
                 </div>
-                <span className="text-sm text-gray-500 dark:text-zinc-500">{total} registros</span>
-            </div>
+                <div className="flex items-center gap-3">
+                    <div className="px-4 py-2 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        {total} Eventos Registrados
+                    </div>
+                    <button className="btn-maia-secondary py-2 px-5 flex items-center gap-2 text-xs">
+                        <FileDown className="w-4 h-4" /> Exportar Report
+                    </button>
+                </div>
+            </header>
 
-            {/* Filters */}
-            <div className="flex gap-3 mb-6">
-                <div className="relative">
-                    <Filter className="w-4 h-4 text-gray-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            {/* Filters Bento Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative group">
+                    <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                     <select
                         value={filterAction}
                         onChange={(e) => { setFilterAction(e.target.value); setPage(1); }}
-                        className="pl-9 pr-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-gray-900 dark:text-white text-sm appearance-none cursor-pointer min-w-[160px] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full glass bg-white/50 dark:bg-white/[0.02] border-black/5 dark:border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm font-bold text-gray-900 dark:text-white appearance-none cursor-pointer focus:ring-2 focus:ring-blue-600/20 outline-none"
                     >
-                        <option value="">Todas as ações</option>
-                        {Object.keys(ACTION_ICONS).map(a => (
+                        <option value="">Todas as Ações</option>
+                        {Object.keys(ACTION_ICONS).sort().map(a => (
                             <option key={a} value={a}>{a}</option>
                         ))}
                     </select>
                 </div>
-                <div className="relative">
-                    <Search className="w-4 h-4 text-gray-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                     <select
                         value={filterResource}
                         onChange={(e) => { setFilterResource(e.target.value); setPage(1); }}
-                        className="pl-9 pr-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-gray-900 dark:text-white text-sm appearance-none cursor-pointer min-w-[160px] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full glass bg-white/50 dark:bg-white/[0.02] border-black/5 dark:border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm font-bold text-gray-900 dark:text-white appearance-none cursor-pointer focus:ring-2 focus:ring-blue-600/20 outline-none"
                     >
-                        <option value="">Todos os recursos</option>
+                        <option value="">Todos os Recursos</option>
                         {Object.entries(RESOURCE_LABELS).map(([k, v]) => (
                             <option key={k} value={k}>{v}</option>
                         ))}
                     </select>
                 </div>
+                <div className="flex items-center gap-2 p-1 glass bg-white/30 dark:bg-white/[0.01] border-black/5 dark:border-white/5 rounded-2xl">
+                    <button 
+                        onClick={() => fetchLogs()}
+                        className="flex-1 py-2 px-4 rounded-xl hover:bg-white dark:hover:bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-500 transition-all flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} /> Atualizar
+                    </button>
+                </div>
             </div>
 
-            {/* Timeline */}
-            {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
-                </div>
-            ) : logs.length === 0 ? (
-                <div className="text-center py-20 text-gray-400 dark:text-zinc-500">
-                    <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>Nenhum registro de auditoria encontrado.</p>
-                </div>
-            ) : (
-                <div className="space-y-1">
-                    {logs.map((log) => {
-                        const Icon = ACTION_ICONS[log.action] || Shield;
-                        const colorClass = ACTION_COLORS[log.action] || 'text-gray-400 bg-gray-100 dark:text-zinc-400 dark:bg-zinc-400/10';
-                        const resourceLabel = RESOURCE_LABELS[log.resource_type] || log.resource_type;
+            {/* Timeline Content */}
+            <div className="relative">
+                {/* Vertical Line */}
+                <div className="absolute left-10 top-0 bottom-0 w-px bg-gradient-to-b from-blue-600/20 via-blue-600/10 to-transparent hidden md:block" />
 
-                        return (
-                            <div
-                                key={log.id}
-                                className="flex items-center gap-4 px-4 py-3 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg hover:border-gray-200 dark:hover:border-zinc-700 transition-colors shadow-sm dark:shadow-none"
-                            >
-                                <div className={`p-2 rounded-lg ${colorClass}`}>
-                                    <Icon className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">
-                                            {log.action}
-                                        </span>
-                                        <span className="text-xs text-gray-500 dark:text-zinc-500">{resourceLabel}</span>
-                                        {log.details && (
-                                            <span className="text-xs text-gray-400 dark:text-zinc-400 truncate">— {log.details}</span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-xs text-gray-500 dark:text-zinc-500">{log.user_email || log.user_id}</span>
-                                        {log.resource_id && (
-                                            <span className="text-[10px] text-gray-400 dark:text-zinc-600 font-mono">ID: {log.resource_id.slice(0, 8)}…</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <span className="text-xs text-gray-500 dark:text-zinc-500 whitespace-nowrap">{formatDate(log.timestamp)}</span>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+                <AnimatePresence mode="wait">
+                    {loading ? (
+                        <motion.div 
+                            key="loading"
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }}
+                            className="flex flex-col items-center justify-center py-32 space-y-4"
+                        >
+                            <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+                            <p className="text-xs font-black uppercase tracking-widest text-gray-400 animate-pulse">Sincronizando registros de auditoria...</p>
+                        </motion.div>
+                    ) : logs.length === 0 ? (
+                        <motion.div 
+                            key="empty"
+                            initial={{ opacity: 0, scale: 0.9 }} 
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bento-card text-center py-24"
+                        >
+                            <Shield className="w-16 h-16 text-gray-300 dark:text-zinc-800 mx-auto mb-6 opacity-50" />
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Nenhum evento crítico</h3>
+                            <p className="text-sm text-gray-500 mt-2 max-w-xs mx-auto">Não encontramos registros que correspondam aos filtros aplicados no momento.</p>
+                        </motion.div>
+                    ) : (
+                        <motion.div 
+                            key="list"
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            className="space-y-4"
+                        >
+                            {logs.map((log) => {
+                                const Icon = ACTION_ICONS[log.action] || Shield;
+                                const colorClass = ACTION_COLORS[log.action] || 'text-gray-400 bg-gray-100 dark:text-zinc-400 dark:bg-zinc-400/10';
+                                const resourceLabel = RESOURCE_LABELS[log.resource_type] || log.resource_type;
 
-            {/* Pagination */}
+                                return (
+                                    <motion.div
+                                        key={log.id}
+                                        variants={itemVariants}
+                                        className="group relative flex flex-col md:flex-row md:items-center gap-6 p-5 glass-premium bg-white dark:bg-white/[0.02] border-black/5 dark:border-white/5 rounded-[2rem] hover:shadow-xl hover:shadow-blue-600/5 transition-all"
+                                    >
+                                        {/* Action Icon Circle */}
+                                        <div className="md:ml-2 flex flex-col items-center shrink-0 z-10">
+                                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110", colorClass)}>
+                                                <Icon className="w-5 h-5" />
+                                            </div>
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex-1 space-y-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-zinc-400">
+                                                    {log.action}
+                                                </span>
+                                                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                                    Interação em <span className="text-blue-600 dark:text-blue-400 capitalize">{resourceLabel}</span>
+                                                </span>
+                                                <span className="text-[10px] font-medium text-gray-400 dark:text-zinc-500 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                                    <Calendar className="w-2.5 h-2.5" /> {formatDate(log.timestamp)}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-zinc-500">
+                                                <span className="font-bold text-gray-700 dark:text-zinc-300">{log.user_email || "Sistema"}</span>
+                                                {log.ip_address && (
+                                                    <span className="opacity-50 font-mono text-[10px]">@{log.ip_address}</span>
+                                                )}
+                                                {log.resource_id && (
+                                                    <span className="flex items-center gap-1 opacity-50 font-mono text-[10px]">
+                                                        <ExternalLink className="w-2.5 h-2.5" /> ID: {log.resource_id.slice(-8)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {log.details && (
+                                                <div className="mt-3 p-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.01] border border-black/[0.03] dark:border-white/[0.03] text-[11px] text-gray-500 dark:text-zinc-400 italic font-medium leading-relaxed">
+                                                    "{log.details}"
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Side Effect Indicator */}
+                                        <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
+                                            <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Pagination Glass Card */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-6">
-                    <button
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page <= 1}
-                        className="p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="text-sm text-gray-500 dark:text-zinc-400">
+                <div className="flex items-center justify-between px-6 py-4 glass bg-white/50 dark:bg-white/[0.02] border-black/5 dark:border-white/5 rounded-[2rem]">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                         Página {page} de {totalPages}
-                    </span>
-                    <button
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages}
-                        className="p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <ChevronRight className="w-4 h-4" />
-                    </button>
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="p-3 rounded-xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                            className="p-3 rounded-xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

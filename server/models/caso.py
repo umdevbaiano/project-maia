@@ -65,6 +65,7 @@ class CasoResponse(BaseModel):
     data_ajuizamento: Optional[str] = None
     assuntos: Optional[list[str]] = None
     dados_tribunal: Optional[dict[str, Any]] = None
+    predictive_analytics: Optional[dict[str, Any]] = None
     workspace_id: str
     created_at: str
     updated_at: str

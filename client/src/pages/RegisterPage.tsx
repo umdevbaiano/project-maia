@@ -65,7 +65,7 @@ const RegisterPage: React.FC = () => {
                     email: adminEmail,
                     code,
                 });
-                navigate('/');
+                navigate('/app');
             } catch (err: any) {
                 setError(err.response?.data?.detail || 'Código inválido ou expirado.');
             } finally {

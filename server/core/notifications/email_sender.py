@@ -38,6 +38,7 @@ async def send_email(to_email: str, subject: str, body_text: str, body_html: str
             password=settings.SMTP_PASSWORD,
             use_tls=False,
             start_tls=True,
+            timeout=5,
         )
         print(f"✅ Email enviado para {to_email}: {subject}")
         return True

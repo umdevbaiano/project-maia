@@ -13,7 +13,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.legal.scraper import scrape_all_laws
-from core.rag.pipeline import chunk_by_article, index_legal_chunks, get_legal_collection_count
+from core.rag.pipeline import chunk_legal_structurally, index_legal_chunks, get_legal_collection_count
 
 
 def main():
@@ -34,7 +34,7 @@ def main():
     total_chunks = 0
 
     for law in laws:
-        chunks = chunk_by_article(law["text"])
+        chunks = chunk_legal_structurally(law["law_text"])
         count = index_legal_chunks(law["law_name"], law["law_id"], chunks)
         total_chunks += count
         print(f"   ✅ {law['law_name']}: {count} artigos indexados")

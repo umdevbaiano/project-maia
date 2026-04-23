@@ -7,9 +7,13 @@ from typing import Optional
 
 import chromadb
 import fitz  # PyMuPDF
+from typing import Optional
+from rank_bm25 import BM25Okapi
+import asyncio
 
 from config import get_settings
 from core.rag.embeddings import get_chroma_embedding_function
+from core.ai.factory import get_ai_provider
 
 
 # Global ChromaDB client (lazy-loaded)
@@ -42,7 +46,9 @@ def extract_text(file_bytes: bytes, file_type: str) -> str:
 
 # ---------- Chunking ----------
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 1000) -> list[str]:
+    # Chunking 500-1000 tokens com 10% overlap
+    overlap = int(chunk_size * 0.1)
     if not text.strip():
         return []
     chunks = []
@@ -67,41 +73,74 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]
     return chunks
 
 
-def chunk_by_article(text: str) -> list[dict]:
+def chunk_legal_structurally(text: str) -> list[dict]:
     """
-    Chunk legal text by article for precise legal retrieval.
-    Returns list of {"text": ..., "article": ...}
+    Advanced semantic/structural chunking for Brazilian legal texts.
+    Identifies hierarchy: Artigo > Parágrafo > Inciso > Alínea.
+    Injects context from parents to ensure RAG precision.
     """
     import re
-    # Match patterns like "Art. 1º", "art. 1o", "Artigo 2", etc.
-    pattern = r'((?:[Aa]rt\.|[Aa]rtigo)\s*\d+(?:[º°oOA-Z\-])*\.?\s*)'
-    parts = re.split(pattern, text)
+    
+    # Patterns for Brazilian legal structure
+    ART_PATTERN = r'^((?:[Aa]rt\.|[Aa]rtigo)\s*\d+(?:[º°oOA-Z\-])*\.?\s*)'
+    PAR_PATTERN = r'^((?:§\s*\d+|Parágrafo\s+único)\s*(?:[º°oOA-Z\-])*\.?\s*)'
+    INC_PATTERN = r'^([IVXLCDM]+\s*-\s*)'
+    ALI_PATTERN = r'^([a-z]\)\s*)'
+
+    patterns = [
+        ('art', ART_PATTERN),
+        ('par', PAR_PATTERN),
+        ('inc', INC_PATTERN),
+        ('ali', ALI_PATTERN)
+    ]
+    
+    # Combined pattern for finditer
+    COMBINED = '|'.join(f'(?P<{name}>{pat})' for name, pat in patterns)
+    
+    matches = list(re.finditer(COMBINED, text, re.MULTILINE))
+    
+    if not matches:
+        return [{"text": c, "metadata": {"article": "", "paragraph": "", "inciso": "", "alinea": "", "hierarchy": ""}} 
+                for c in chunk_text(text)]
 
     chunks = []
-    current_article = ""
-    current_text = ""
+    curr_art, curr_par, curr_inc, curr_ali = "", "", "", ""
+    
+    for i, match in enumerate(matches):
+        start = match.start()
+        end = matches[i+1].start() if i + 1 < len(matches) else len(text)
+        
+        segment_text = text[start:end].strip()
+        if not segment_text:
+            continue
+            
+        # Update current hierarchy based on match group
+        if match.group('art'):
+            curr_art = match.group('art').strip()
+            curr_par, curr_inc, curr_ali = "", "", ""
+        elif match.group('par'):
+            curr_par = match.group('par').strip()
+            curr_inc, curr_ali = "", ""
+        elif match.group('inc'):
+            curr_inc = match.group('inc').strip()
+            curr_ali = ""
+        elif match.group('ali'):
+            curr_ali = match.group('ali').strip()
 
-    for part in parts:
-        if re.match(pattern, part):
-            if current_text.strip():
-                chunks.append({
-                    "text": f"{current_article} {current_text}".strip(),
-                    "article": current_article.strip()
-                })
-            current_article = part.strip()
-            current_text = ""
-        else:
-            current_text += part
-
-    if current_text.strip():
+        # Build context header
+        context_parts = [c for c in [curr_art, curr_par, curr_inc, curr_ali] if c]
+        header = f"[{' '.join(context_parts)}] " if context_parts else ""
+        
         chunks.append({
-            "text": f"{current_article} {current_text}".strip(),
-            "article": current_article.strip()
+            "text": f"{header}{segment_text}",
+            "metadata": {
+                "article": curr_art,
+                "paragraph": curr_par,
+                "inciso": curr_inc,
+                "alinea": curr_ali,
+                "hierarchy": " > ".join(context_parts)
+            }
         })
-
-    # If no articles found, fall back to regular chunking
-    if not chunks:
-        return [{"text": c, "article": ""} for c in chunk_text(text)]
 
     return chunks
 
@@ -118,14 +157,50 @@ def _get_workspace_collection(workspace_id: str):
     )
 
 
-async def index_document(workspace_id: str, doc_id: str, filename: str, chunks: list[str]) -> int:
-    if not chunks:
+async def generate_chunk_summaries_in_batches(chunks: list[dict]) -> list[str]:
+    ai = get_ai_provider()
+    if not ai.is_configured():
+        return [""] * len(chunks)
+        
+    async def summarize(chunk_dict):
+        text = chunk_dict["text"]
+        prompt = "Escreva um resumo de exatamente 2 frases capturando a essência jurídica ou factual do texto a seguir para indexação de busca:\n\n" + text[:1500]
+        try:
+            return await ai.generate(prompt)
+        except Exception:
+            return "Resumo indisponível."
+            
+    # Processa em paralelo (recomenda-se limite de concurrency via semaforo em prd massivo)
+    tasks = [summarize(c) for c in chunks]
+    return await asyncio.gather(*tasks)
+
+async def index_document(workspace_id: str, doc_id: str, filename: str, text: str) -> int:
+    """Index a workspace document, attempting to use legal structural chunking se possível."""
+    if not text.strip():
         return 0
+        
+    chunks_data = chunk_legal_structurally(text)
+    
+    # 🌟 Geração Enriquecida de IA (Summary on Ingest)
+    summaries = await generate_chunk_summaries_in_batches(chunks_data)
+    
     collection = _get_workspace_collection(workspace_id)
-    ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks))]
-    metadatas = [{"doc_id": doc_id, "filename": filename, "chunk_index": i} for i in range(len(chunks))]
-    collection.add(documents=chunks, ids=ids, metadatas=metadatas)
-    return len(chunks)
+    ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks_data))]
+    documents = [c["text"] for c in chunks_data]
+    metadatas = []
+    
+    for i, c in enumerate(chunks_data):
+        meta = {
+            "doc_id": doc_id, 
+            "filename": filename, 
+            "chunk_index": i,
+            "summary": summaries[i][:300], # Protege o tamanho max do metadata
+            **c.get("metadata", {})
+        }
+        metadatas.append(meta)
+        
+    collection.add(documents=documents, ids=ids, metadatas=metadatas)
+    return len(chunks_data)
 
 
 async def delete_document(workspace_id: str, doc_id: str) -> None:
@@ -152,16 +227,25 @@ def _get_legal_collection():
 
 def index_legal_chunks(law_name: str, law_id: str, chunks: list[dict]) -> int:
     """
-    Index legal article chunks into the global 'legislacao_br' collection.
-    chunks: [{"text": ..., "article": ...}, ...]
+    Index legal structural chunks into the global 'legislacao_br' collection.
+    chunks: [{"text": ..., "metadata": {...}}, ...]
     """
     if not chunks:
         return 0
     collection = _get_legal_collection()
-    ids = [f"{law_id}_art_{i}" for i in range(len(chunks))]
+    ids = [f"{law_id}_chunk_{i}" for i in range(len(chunks))]
     documents = [c["text"] for c in chunks]
-    metadatas = [{"law_name": law_name, "law_id": law_id, "article": c.get("article", ""), "chunk_index": i}
-                 for i, c in enumerate(chunks)]
+    
+    metadatas = []
+    for i, c in enumerate(chunks):
+        meta = {
+            "law_name": law_name,
+            "law_id": law_id,
+            "chunk_index": i,
+            **c.get("metadata", {})
+        }
+        metadatas.append(meta)
+        
     # Upsert to allow re-indexing
     collection.upsert(documents=documents, ids=ids, metadatas=metadatas)
     return len(chunks)
@@ -177,21 +261,70 @@ def get_legal_collection_count() -> int:
 
 # ---------- Retrieval ----------
 
-async def retrieve(workspace_id: str, query: str, top_k: int = 3, caso_id: Optional[str] = None) -> list[str]:
-    """Retrieve from workspace documents only. Optionally filter by caso_id."""
+async def retrieve(workspace_id: str, query: str, top_k: int = 5, caso_id: Optional[str] = None) -> list[str]:
+    """Retrieve with RRF (Reciprocal Rank Fusion) combining Semantic Dense and BM25 Sparse search."""
     try:
         collection = _get_workspace_collection(workspace_id)
-        
         where_filter = {"caso_id": caso_id} if caso_id else None
         
-        results = collection.query(
+        # 1. Obter todos os documentos relevantes para rodar BM25 em memória
+        all_docs = collection.get(where=where_filter, include=["documents", "metadatas"])
+        if not all_docs or not all_docs.get("documents"):
+            return []
+            
+        docs_text = all_docs["documents"]
+        doc_ids = all_docs["ids"]
+        metadatas = all_docs["metadatas"]
+        
+        # 2. Dense Semantic Search (Chroma)
+        semantic_results = collection.query(
             query_texts=[query], 
-            n_results=top_k,
+            n_results=min(top_k * 3, len(docs_text)),
             where=where_filter
         )
-        return results["documents"][0] if results["documents"] else []
+        
+        dense_ranks = {}
+        if semantic_results["ids"] and len(semantic_results["ids"]) > 0:
+            for rank, doc_id in enumerate(semantic_results["ids"][0]):
+                dense_ranks[doc_id] = rank + 1
+                
+        # 3. Sparse Keyword Search (BM25)
+        tokenized_corpus = [doc.lower().split() for doc in docs_text]
+        bm25 = BM25Okapi(tokenized_corpus)
+        tokenized_query = query.lower().split()
+        bm25_scores = bm25.get_scores(tokenized_query)
+        
+        sparse_ranking = sorted([
+            (score, doc_id) for score, doc_id in zip(bm25_scores, doc_ids) if score > 0
+        ], reverse=True, key=lambda x: x[0])
+        
+        sparse_ranks = {doc_id: rank + 1 for rank, (_, doc_id) in enumerate(sparse_ranking)}
+        
+        # 4. RRF (Reciprocal Rank Fusion)
+        rrf_scores = {}
+        k_rrf = 60 # Constante RRF clássica
+        for doc_id in doc_ids:
+            rrf_score = 0
+            if doc_id in dense_ranks:
+                rrf_score += 1 / (k_rrf + dense_ranks[doc_id])
+            if doc_id in sparse_ranks:
+                rrf_score += 1 / (k_rrf + sparse_ranks[doc_id])
+            rrf_scores[doc_id] = rrf_score
+            
+        # Top-K
+        top_ids = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)[:top_k]
+        
+        final_docs = []
+        for d_id in top_ids:
+            if rrf_scores[d_id] == 0: continue
+            idx = doc_ids.index(d_id)
+            meta = metadatas[idx]
+            # Adiciona citação rica para O Oraculo Themis
+            final_docs.append(f"[Doc: {meta.get('filename', 'Desconhecido')}] {docs_text[idx]}")
+            
+        return final_docs
     except Exception as e:
-        print(f"RAG retrieval error: {e}")
+        print(f"RAG retrieval RRF error: {e}")
         return []
 
 

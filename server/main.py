@@ -1,7 +1,3 @@
-"""
-Maia Platform — Application Entrypoint
-Clean FastAPI setup with lifespan, routers, and CORS.
-"""
 from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI
@@ -10,37 +6,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
 from database import connect_db, disconnect_db
 from core.ai.factory import get_ai_provider
-from routers import health, chat, auth, documents, casos, clientes, prazos, pecas, dashboard, audit, jurisprudencia
+from routers import health, chat, auth, documents, casos, clientes, prazos, pecas, dashboard, audit, jurisprudencia, workspaces, templates, websockets, setup, protocol
 from core.legal.updater import start_legal_updater
 from core.notifications.scheduler import start_notification_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     await connect_db()
     
-    # Initialize AI Provider
     get_ai_provider()
     print("🤖 AI Provider initialized")
     print("🚀 Maia Platform API is ready!")
 
-    # Start background auto-updater for legal base
     asyncio.create_task(start_legal_updater())
-    
-    # Start background scheduler for email notifications
     asyncio.create_task(start_notification_scheduler())
     
     yield
     
-    # Shutdown
-    print("INFO:     Shutting down")
     await disconnect_db()
     print("👋 Maia Platform API shutting down.")
 
 
 def create_app() -> FastAPI:
-    """Application factory."""
     settings = get_settings()
 
     app = FastAPI(
@@ -49,7 +37,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -59,7 +46,6 @@ def create_app() -> FastAPI:
         expose_headers=["Content-Disposition"]
     )
 
-    # Routers
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(chat.router)
@@ -71,6 +57,11 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(audit.router)
     app.include_router(jurisprudencia.router)
+    app.include_router(workspaces.router)
+    app.include_router(templates.router, prefix="/api/v1/templates", tags=["Templates"])
+    app.include_router(websockets.router)
+    app.include_router(setup.router)
+    app.include_router(protocol.router, prefix="/api/v1")
 
     return app
 

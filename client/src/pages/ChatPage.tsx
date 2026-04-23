@@ -5,6 +5,7 @@ import { chatApi } from '../utils/api';
 import type { ChatMessage } from '../types/chat';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import VoiceInput from '../components/VoiceInput';
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -281,7 +282,10 @@ const ChatPage: React.FC = () => {
       <div className="pb-8">
         <div className="max-w-3xl mx-auto px-6">
           <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-4">
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
+              <VoiceInput 
+                onTranscript={(text) => setInputValue(prev => prev + ' ' + text)} 
+              />
               <input
                 type="text"
                 value={inputValue}

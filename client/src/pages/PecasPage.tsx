@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
-import { FileText, Plus, Trash2, Copy, Check, Loader2, Briefcase, ChevronDown, Download, Edit2, Save, X, User } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import { FileText, Plus, Trash2, Copy, Check, Loader2, Briefcase, ChevronDown, Download, Edit2, Save, X, User, FileType, PenTool, Link2, Eye } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import api from '../utils/api';
+import LegalDocumentViewer from '../components/LegalDocumentViewer';
+import VoiceInput from '../components/VoiceInput';
 import { Peca, TIPO_PECA_OPTIONS } from '../types/peca';
+import SignatureModal from '../components/SignatureModal';
 
 interface Cliente {
     id: string;
@@ -18,19 +24,27 @@ interface Caso {
 }
 
 export default function PecasPage() {
-    const [pecas, setPecas] = useState<Peca[]>([]);
-    const [casos, setCasos] = useState<Caso[]>([]);
-    const [clientes, setClientes] = useState<Cliente[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [generating, setGenerating] = useState(false);
-    const [showForm, setShowForm] = useState(false);
-    const [selectedPeca, setSelectedPeca] = useState<Peca | null>(null);
-    const [copied, setCopied] = useState(false);
+    const loc = useLocation();
+    const locationState = loc.state as any;
+    const queryClient = useQueryClient();
 
-    // Form state
-    const [tipo, setTipo] = useState('peticao_inicial');
+    const [generating, setGenerating] = useState(false);
+    const [generatingKit, setGeneratingKit] = useState(false);
+    const [showForm, setShowForm] = useState(!!locationState?.presetInstrucoes);
+    // ... rest of state
+    const [selectedPeca, setSelectedPeca] = useState<Peca | null>(null);
+    const [tempStreamedPeca, setTempStreamedPeca] = useState<Peca | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [copiedLink, setCopiedLink] = useState(false);
+
+    // Signature State
+    const [showSignatureModal, setShowSignatureModal] = useState(false);
+    const [showViewer, setShowViewer] = useState(false);
+
+    // Form state pre-filled from Marketplace if available
+    const [tipo, setTipo] = useState(locationState?.presetTipo || 'peticao_inicial');
     const [casoId, setCasoId] = useState('');
-    const [instrucoes, setInstrucoes] = useState('');
+    const [instrucoes, setInstrucoes] = useState(locationState?.presetInstrucoes || '');
 
     // Editing State
     const [isEditing, setIsEditing] = useState(false);
@@ -39,61 +53,181 @@ export default function PecasPage() {
     const [editedClienteId, setEditedClienteId] = useState('');
     const [saving, setSaving] = useState(false);
 
+    // Export state
+    const [exportingFormat, setExportingFormat] = useState<'docx' | 'pdf' | null>(null);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
+
+    // Close export menu on outside click
     useEffect(() => {
-        fetchPecas();
-        fetchCasos();
-        fetchClientes();
+        const handler = (e: MouseEvent) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const fetchPecas = async () => {
-        setLoading(true);
-        try {
+    // Queries
+    const { data: pecasData = [], isLoading: pecasLoading } = useQuery<Peca[]>({
+        queryKey: ['pecas'],
+        queryFn: async () => {
             const response = await api.get('/pecas/');
-            setPecas(response.data.pecas || []);
-        } catch (error) {
-            console.error('Error fetching pecas:', error);
-        } finally {
-            setLoading(false);
+            return response.data.pecas || [];
         }
-    };
+    });
 
-    const fetchCasos = async () => {
-        try {
+    const { data: casos = [] } = useQuery<Caso[]>({
+        queryKey: ['casos'],
+        queryFn: async () => {
             const response = await api.get('/casos/');
-            setCasos(response.data.casos || []);
-        } catch (error) {
-            console.error('Error fetching casos:', error);
+            return response.data.casos || [];
         }
-    };
+    });
 
-    const fetchClientes = async () => {
-        try {
+    const { data: clientes = [] } = useQuery<Cliente[]>({
+        queryKey: ['clientes'],
+        queryFn: async () => {
             const response = await api.get('/clientes/');
-            setClientes(response.data.clientes || []);
-        } catch (error) {
-            console.error('Error fetching clientes:', error);
+            return response.data.clientes || [];
         }
-    };
+    });
+
+    // Merge streamed peca into display pecas
+    const displayPecas = tempStreamedPeca ? [tempStreamedPeca, ...pecasData.filter((p: Peca) => p.id !== tempStreamedPeca.id)] : pecasData;
 
     const handleGenerate = async () => {
         if (instrucoes.length < 10) return;
         setGenerating(true);
+        
+        const tempId = `temp-${Date.now()}`;
+        const tempPeca: Peca = {
+            id: tempId,
+            tipo: tipo as any,
+            tipo_label: 'Gerando...',
+            titulo: 'Gerando Peça...',
+            conteudo: '',
+            created_at: new Date().toISOString(),
+            workspace_id: 'temp',
+            signature_status: 'pending'
+        };
+        
+        setTempStreamedPeca(tempPeca);
+        setSelectedPeca(tempPeca);
+        setShowForm(false);
+
         try {
-            const response = await api.post('/pecas/generate', {
-                tipo,
-                caso_id: casoId || undefined,
-                instrucoes,
+            const token = localStorage.getItem('maia_token');
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${apiUrl}/pecas/stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ tipo, caso_id: casoId || undefined, instrucoes })
             });
-            const newPeca = response.data;
-            setPecas([newPeca, ...pecas]);
-            setSelectedPeca(newPeca);
-            setShowForm(false);
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || 'Erro ao gerar peça');
+            }
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            if (!reader) throw new Error('No reader available');
+
+            let buffer = '';
+            let finalId = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+                    try {
+                        const data = JSON.parse(trimmedLine.slice(6));
+                        
+                        // Parse MAIA_DONE token to get real DB ID
+                        if (data.chunk && data.chunk.includes('[MAIA_DONE_ID:')) {
+                            const match = data.chunk.match(/\\[MAIA_DONE_ID:(.*?)\\]/);
+                            if (match) finalId = match[1];
+                            continue;
+                        }
+
+                        if (data.chunk) {
+                            tempPeca.conteudo += data.chunk;
+                            // Clean tags live from UI if they appear
+                            const cleanContent = tempPeca.conteudo
+                                .replace(/\\[INICIO_PECA\\]/g, '')
+                                .replace(/\\[FIM_PECA\\]/g, '');
+                                
+                            const updated = { ...tempPeca, conteudo: cleanContent };
+                            setTempStreamedPeca(updated);
+                            setSelectedPeca(updated);
+                        }
+                        if (data.error) throw new Error(data.error);
+                    } catch (e) {
+                        // ignore malformed JSON chunk
+                    }
+                }
+            }
+            
             setInstrucoes('');
             setCasoId('');
+            
+            // Fetch final saved peca to replace the temp one completely
+            if (finalId) {
+                setTempStreamedPeca(null);
+                await queryClient.invalidateQueries({ queryKey: ['pecas'] });
+                const finalPecaResp = await api.get(`/pecas/${finalId}`);
+                setSelectedPeca(finalPecaResp.data);
+            }
+
         } catch (error: any) {
-            alert(error.response?.data?.detail || 'Erro ao gerar peça');
+            alert(error.message || 'Erro ao gerar peça');
+            setTempStreamedPeca(null);
+            setSelectedPeca(null);
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleGenerateKit = async () => {
+        if (!casoId) {
+            alert('Selecione um processo para gerar o kit completo.');
+            return;
+        }
+        if (instrucoes.length < 10) return;
+        
+        setGeneratingKit(true);
+        try {
+            const response = await api.post('/pecas/bundle', {
+                caso_id: casoId,
+                instrucoes
+            });
+            
+            await queryClient.invalidateQueries({ queryKey: ['pecas'] });
+            setInstrucoes('');
+            setCasoId('');
+            setShowForm(false);
+            
+            // Select the first one (usually the petition)
+            if (response.data.length > 0) {
+                handleSelectPeca(response.data[0]);
+            }
+        } catch (error: any) {
+            alert(error.response?.data?.detail || 'Erro ao gerar kit');
+        } finally {
+            setGeneratingKit(false);
         }
     };
 
@@ -101,7 +235,7 @@ export default function PecasPage() {
         if (!confirm('Tem certeza que deseja excluir esta peça?')) return;
         try {
             await api.delete(`/pecas/${id}`);
-            setPecas(pecas.filter(p => p.id !== id));
+            await queryClient.invalidateQueries({ queryKey: ['pecas'] });
             if (selectedPeca?.id === id) {
                 setSelectedPeca(null);
                 setIsEditing(false);
@@ -130,7 +264,7 @@ export default function PecasPage() {
             };
             const response = await api.put(`/pecas/${selectedPeca.id}`, updates);
             const updatedPeca = response.data;
-            setPecas(pecas.map(p => p.id === updatedPeca.id ? updatedPeca : p));
+            await queryClient.invalidateQueries({ queryKey: ['pecas'] });
             setSelectedPeca(updatedPeca);
             setIsEditing(false);
         } catch (error: any) {
@@ -146,28 +280,25 @@ export default function PecasPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleDownloadDocx = async (pecaId: string) => {
+    const handleCopySignatureLink = async (url: string) => {
+        await navigator.clipboard.writeText(url);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+    };
+
+    const handleExport = async (pecaId: string, format: 'docx' | 'pdf') => {
+        setExportingFormat(format);
+        setShowExportMenu(false);
         try {
-            const response = await api.get(`/pecas/${pecaId}/download`, {
+            const response = await api.get(`/pecas/${pecaId}/download?format=${format}`, {
                 responseType: 'blob',
             });
-            let filename = `peca_${pecaId}.docx`;
+            let filename = `peca_${pecaId}.${format}`;
             const disposition = response.headers['content-disposition'];
             if (disposition) {
-                if (disposition.includes('filename*=')) {
-                    const matches = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition);
-                    if (matches && matches[1]) {
-                        filename = decodeURIComponent(matches[1]);
-                    }
-                } else if (disposition.includes('filename=')) {
-                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-                    if (matches != null && matches[1]) {
-                        filename = matches[1].replace(/['"]/g, '');
-                        filename = decodeURIComponent(filename);
-                    }
-                }
+                const matches = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition);
+                if (matches?.[1]) filename = decodeURIComponent(matches[1]);
             }
-
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
@@ -177,8 +308,10 @@ export default function PecasPage() {
             link.remove();
             window.URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('Error downloading DOCX:', error);
-            alert('Erro ao baixar o documento.');
+            console.error(`Error downloading ${format.toUpperCase()}:`, error);
+            alert(`Erro ao exportar o documento como ${format.toUpperCase()}.`);
+        } finally {
+            setExportingFormat(null);
         }
     };
 
@@ -243,16 +376,21 @@ export default function PecasPage() {
                             color: '#fff', fontSize: '0.9rem',
                         }}>
                             <option value="" style={{ background: '#1a1a2e' }}>Nenhum processo</option>
-                            {casos.map(c => (
+                            {casos.map((c: Caso) => (
                                 <option key={c.id} value={c.id} style={{ background: '#1a1a2e' }}>
                                     {c.numero ? `${c.numero} — ` : ''}{c.titulo}
                                 </option>
                             ))}
                         </select>
 
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
-                            Instruções para a Maia
-                        </label>
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
+                                Instruções para a Maia
+                            </label>
+                            <VoiceInput 
+                                onTranscript={(text: string) => setInstrucoes((prev: string) => prev + ' ' + text)} 
+                            />
+                        </div>
                         <textarea
                             value={instrucoes}
                             onChange={e => setInstrucoes(e.target.value)}
@@ -267,11 +405,11 @@ export default function PecasPage() {
 
                         <button
                             onClick={handleGenerate}
-                            disabled={generating || instrucoes.length < 10}
+                            disabled={generating || generatingKit || instrucoes.length < 10}
                             style={{
-                                background: generating ? 'rgba(124,58,237,0.3)' : 'linear-gradient(135deg, #7c3aed, #a78bfa)',
+                                background: (generating || generatingKit) ? 'rgba(124,58,237,0.3)' : 'linear-gradient(135deg, #7c3aed, #a78bfa)',
                                 border: 'none', borderRadius: '10px', padding: '0.75rem',
-                                color: '#fff', cursor: generating ? 'not-allowed' : 'pointer',
+                                color: '#fff', cursor: (generating || generatingKit) ? 'not-allowed' : 'pointer',
                                 fontWeight: 700, fontSize: '0.95rem',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                             }}
@@ -282,6 +420,27 @@ export default function PecasPage() {
                                 <><FileText size={18} /> Gerar {tipoLabel}</>
                             )}
                         </button>
+
+                        {/* Bundle Kit Button */}
+                        <button
+                            onClick={handleGenerateKit}
+                            disabled={generating || generatingKit || !casoId || instrucoes.length < 10}
+                            style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(124,58,237,0.3)',
+                                borderRadius: '10px', padding: '0.75rem',
+                                color: '#a78bfa', cursor: (generating || generatingKit || !casoId) ? 'not-allowed' : 'pointer',
+                                fontWeight: 600, fontSize: '0.9rem',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                marginTop: '0.25rem'
+                            }}
+                        >
+                            {generatingKit ? (
+                                <><Loader2 size={18} className="spin" style={{ animation: 'spin 1s linear infinite' }} /> Gerando Kit (3 peças)...</>
+                            ) : (
+                                <><Plus size={18} /> Gerar Kit Completo (Pet+Pro+Decl)</>
+                            )}
+                        </button>
                     </div>
                 )}
 
@@ -289,9 +448,9 @@ export default function PecasPage() {
                 <div style={{
                     flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem',
                 }}>
-                    {loading ? (
+                    {pecasLoading ? (
                         <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>Carregando...</div>
-                    ) : pecas.length === 0 ? (
+                    ) : displayPecas.length === 0 ? (
                         <div style={{
                             textAlign: 'center', padding: '3rem 1.5rem',
                             background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
@@ -303,7 +462,7 @@ export default function PecasPage() {
                                 Clique em "Nova Peça" para começar
                             </p>
                         </div>
-                    ) : pecas.map(p => (
+                    ) : displayPecas.map((p: Peca) => (
                         <div
                             key={p.id}
                             onClick={() => handleSelectPeca(p)}
@@ -329,6 +488,12 @@ export default function PecasPage() {
                                         <span style={{ fontSize: '0.75rem', opacity: 0.5, display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.25rem' }}>
                                             <Briefcase size={12} /> {p.caso_titulo}
                                         </span>
+                                    )}
+                                    {p.signature_status === 'pending' && (
+                                        <span style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '0.3rem', display: 'inline-flex', alignItems: 'center', padding: '0.1rem 0.4rem', background: 'rgba(251, 191, 36, 0.1)', borderRadius: '4px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>Assinatura Pendente</span>
+                                    )}
+                                    {p.signature_status === 'signed' && (
+                                        <span style={{ fontSize: '0.7rem', color: '#34d399', marginTop: '0.3rem', display: 'inline-flex', alignItems: 'center', padding: '0.1rem 0.4rem', background: 'rgba(52, 211, 153, 0.1)', borderRadius: '4px', border: '1px solid rgba(52, 211, 153, 0.2)' }}>Assinado</span>
                                     )}
                                 </div>
                                 <button
@@ -380,7 +545,7 @@ export default function PecasPage() {
                                             color: '#fff', fontSize: '0.75rem',
                                         }}>
                                             <option value="">Sem Cliente vinculado</option>
-                                            {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                            {clientes.map((c: Cliente) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                                         </select>
                                         <select value={editedCasoId} onChange={e => setEditedCasoId(e.target.value)} style={{
                                             padding: '0.4rem 0.5rem', borderRadius: '6px', width: '150px',
@@ -388,7 +553,7 @@ export default function PecasPage() {
                                             color: '#fff', fontSize: '0.75rem',
                                         }}>
                                             <option value="">Sem Processo vinculado</option>
-                                            {casos.map(c => <option key={c.id} value={c.id}>{c.numero || c.titulo}</option>)}
+                                            {casos.map((c: Caso) => <option key={c.id} value={c.id}>{c.numero ? `${c.numero} — ` : ''}{c.titulo}</option>)}
                                         </select>
                                     </div>
                                 ) : (
@@ -398,6 +563,12 @@ export default function PecasPage() {
                                         )}
                                         {selectedPeca.caso_titulo && (
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Briefcase size={12} /> {selectedPeca.caso_titulo}</span>
+                                        )}
+                                        {selectedPeca.signature_status === 'pending' && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#fbbf24', fontWeight: 600 }}><PenTool size={12} /> Assinatura Pendente</span>
+                                        )}
+                                        {selectedPeca.signature_status === 'signed' && (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#34d399', fontWeight: 600 }}><PenTool size={12} /> Assinado</span>
                                         )}
                                     </div>
                                 )}
@@ -422,6 +593,13 @@ export default function PecasPage() {
                                     </>
                                 ) : (
                                     <>
+                                        <button onClick={() => setShowViewer(true)} style={{
+                                            background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
+                                            borderRadius: '10px', padding: '0.5rem 1rem', color: '#22c55e', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                        }}>
+                                            <Eye size={16} /> Visualizar
+                                        </button>
                                         <button onClick={() => setIsEditing(true)} style={{
                                             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
                                             borderRadius: '10px', padding: '0.5rem 1rem', color: '#fff', cursor: 'pointer',
@@ -429,18 +607,88 @@ export default function PecasPage() {
                                         }}>
                                             <Edit2 size={16} /> Editar
                                         </button>
-                                        <button
-                                            onClick={() => handleDownloadDocx(selectedPeca.id)}
-                                            style={{
-                                                background: 'rgba(34,197,94,0.1)',
-                                                border: '1px solid rgba(34,197,94,0.2)',
-                                                borderRadius: '10px', padding: '0.5rem 1rem',
-                                                color: '#22c55e', cursor: 'pointer',
-                                                display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
-                                            }}
-                                        >
-                                            <Download size={16} /> DOCX
-                                        </button>
+                                        {/* Export split-button */}
+                                        <div ref={exportMenuRef} style={{ position: 'relative' }}>
+                                            <div style={{ display: 'flex', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(34,197,94,0.25)' }}>
+                                                {/* Main export button */}
+                                                <button
+                                                    onClick={() => handleExport(selectedPeca.id, 'docx')}
+                                                    disabled={!!exportingFormat}
+                                                    style={{
+                                                        background: 'rgba(34,197,94,0.1)', border: 'none',
+                                                        padding: '0.5rem 0.85rem', color: '#22c55e',
+                                                        cursor: exportingFormat ? 'not-allowed' : 'pointer',
+                                                        display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                                        fontWeight: 600, fontSize: '0.85rem', borderRight: '1px solid rgba(34,197,94,0.2)',
+                                                    }}
+                                                >
+                                                    {exportingFormat
+                                                        ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                                        : <Download size={14} />}
+                                                    {exportingFormat === 'docx' ? 'Gerando...' : exportingFormat === 'pdf' ? 'Gerando...' : 'Exportar'}
+                                                </button>
+                                                {/* Caret toggle */}
+                                                <button
+                                                    onClick={() => setShowExportMenu(v => !v)}
+                                                    disabled={!!exportingFormat}
+                                                    style={{
+                                                        background: 'rgba(34,197,94,0.1)', border: 'none',
+                                                        padding: '0.5rem 0.5rem', color: '#22c55e',
+                                                        cursor: exportingFormat ? 'not-allowed' : 'pointer',
+                                                    }}
+                                                >
+                                                    <ChevronDown size={14} style={{ transform: showExportMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                                                </button>
+                                            </div>
+                                            {/* Dropdown menu */}
+                                            {showExportMenu && (
+                                                <div style={{
+                                                    position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                                                    background: '#1e1e3a', border: '1px solid rgba(255,255,255,0.12)',
+                                                    borderRadius: '10px', overflow: 'hidden', zIndex: 100, minWidth: '150px',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                                                }}>
+                                                    <button onClick={() => handleExport(selectedPeca.id, 'docx')} style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                                        width: '100%', padding: '0.65rem 1rem', background: 'none',
+                                                        border: 'none', color: '#fff', cursor: 'pointer', fontSize: '0.85rem',
+                                                        fontWeight: 500, textAlign: 'left',
+                                                    }}
+                                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                                                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                                                    >
+                                                        <FileText size={14} style={{ color: '#60a5fa' }} />
+                                                        Word (.docx)
+                                                    </button>
+                                                    <button onClick={() => handleExport(selectedPeca.id, 'pdf')} style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                                        width: '100%', padding: '0.65rem 1rem', background: 'none',
+                                                        border: 'none', color: '#fff', cursor: 'pointer', fontSize: '0.85rem',
+                                                        fontWeight: 500, textAlign: 'left',
+                                                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                    }}
+                                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                                                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                                                    >
+                                                        <FileType size={14} style={{ color: '#f87171' }} />
+                                                        PDF (.pdf)
+                                                    </button>
+                                                    <button onClick={() => setShowSignatureModal(true)} style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                                        width: '100%', padding: '0.65rem 1rem', background: 'rgba(124,58,237,0.1)',
+                                                        border: 'none', color: '#c4b5fd', cursor: 'pointer', fontSize: '0.85rem',
+                                                        fontWeight: 600, textAlign: 'left',
+                                                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                    }}
+                                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(124,58,237,0.25)')}
+                                                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(124,58,237,0.1)')}
+                                                    >
+                                                        <PenTool size={14} style={{ color: '#c4b5fd' }} />
+                                                        Solicitar Assinatura
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={() => handleCopy(selectedPeca.conteudo)}
                                             style={{
@@ -453,6 +701,21 @@ export default function PecasPage() {
                                         >
                                             {copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar</>}
                                         </button>
+                                        
+                                        {selectedPeca.signature_status === 'pending' && selectedPeca.signature_url && (
+                                            <button
+                                                onClick={() => handleCopySignatureLink(selectedPeca.signature_url!)}
+                                                style={{
+                                                    background: copiedLink ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.1)',
+                                                    border: `1px solid ${copiedLink ? 'rgba(251,191,36,0.4)' : 'rgba(251,191,36,0.2)'}`,
+                                                    borderRadius: '10px', padding: '0.5rem 1rem',
+                                                    color: '#fbbf24', cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem',
+                                                }}
+                                            >
+                                                {copiedLink ? <><Check size={16} /> Copiado!</> : <><Link2 size={16} /> Link de Assinatura</>}
+                                            </button>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -493,6 +756,28 @@ export default function PecasPage() {
                     </div>
                 )}
             </div>
+
+            {showSignatureModal && selectedPeca && (
+                <SignatureModal 
+                    peca={selectedPeca} 
+                    onClose={() => setShowSignatureModal(false)}
+                    onSuccess={(updatedPeca) => {
+                        queryClient.invalidateQueries({ queryKey: ['pecas'] });
+                        setSelectedPeca(updatedPeca);
+                    }}
+                />
+            )}
+
+            <AnimatePresence>
+                {showViewer && selectedPeca && (
+                    <LegalDocumentViewer 
+                        content={selectedPeca.conteudo}
+                        title={selectedPeca.titulo}
+                        onClose={() => setShowViewer(false)}
+                        onDownload={() => handleExport(selectedPeca.id, 'pdf')}
+                    />
+                )}
+            </AnimatePresence>
 
             <style>{`
                     @keyframes spin { to { transform: rotate(360deg); } }

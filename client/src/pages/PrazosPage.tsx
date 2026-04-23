@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Plus, Trash2, Edit3, X, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit3, X, Loader2, AlertTriangle, CheckCircle2, Briefcase } from 'lucide-react';
 import api from '../utils/api';
 import type { Prazo, PrazoCreateRequest, PrazoPrioridade, PrazoStatus } from '../types/prazo';
 import { STATUS_LABELS, PRIORIDADE_LABELS, PRIORIDADE_COLORS } from '../types/prazo';
@@ -64,95 +64,141 @@ const PrazosPage: React.FC = () => {
 
     const overduePrazos = prazos.filter(p => p.status === 'pendente' && isOverdue(p.data_limite));
 
-    return (
-        <div className="p-8">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                        <Clock className="w-7 h-7 text-blue-500" /> Prazos
-                    </h1>
-                    <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{prazos.length} prazo(s)</p>
-                </div>
-                <button onClick={() => { setEditing(null); setForm({ titulo: '', data_limite: '', prioridade: 'media' }); setShowModal(true); }}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-lg shadow-blue-600/20">
-                    <Plus className="w-5 h-5" /> Novo Prazo
-                </button>
+  return (
+    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+              <Clock className="w-6 h-6" />
             </div>
+            Gestão de Prazos
+          </h1>
+          <p className="text-gray-500 dark:text-zinc-500 font-medium mt-1 ml-13">
+            {prazos.length} prazos processuais monitorados
+          </p>
+        </div>
+        <button 
+          onClick={() => { setEditing(null); setForm({ titulo: '', data_limite: '', prioridade: 'media' }); setShowModal(true); }}
+          className="btn-maia-primary py-2.5 px-6 shadow-xl shadow-blue-600/20"
+        >
+          <Plus className="w-5 h-5" /> Novo Prazo
+        </button>
+      </header>
 
-            {/* Overdue Alert Banner */}
-            {overduePrazos.length > 0 && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6 flex items-center gap-3">
-                    <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
-                    <div>
-                        <p className="text-red-400 font-medium">{overduePrazos.length} prazo(s) vencido(s)!</p>
-                        <p className="text-red-400/70 text-sm">{overduePrazos.map(p => p.titulo).join(', ')}</p>
+      {/* Overdue Alert Banner */}
+      {overduePrazos.length > 0 && (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-6 flex items-center gap-6 animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/40">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
+          <div className="flex-1">
+            <p className="text-red-600 dark:text-red-400 font-extrabold text-lg">Atenção: Prazos Críticos</p>
+            <p className="text-red-500/80 dark:text-red-400/70 font-medium text-sm">
+              Você possui {overduePrazos.length} prazo(s) que expiraram. Verifique imediatamente.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex gap-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-2xl w-fit">
+        {['', 'pendente', 'cumprido', 'expirado'].map(s => (
+          <button 
+            key={s} 
+            onClick={() => setFilter(s)}
+            className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 ${
+              filter === s 
+                ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm' 
+                : 'text-gray-500 hover:text-gray-900 dark:text-zinc-500 dark:hover:text-zinc-300'
+            }`}
+          >
+            {s === '' ? 'Todos' : STATUS_LABELS[s as PrazoStatus]}
+          </button>
+        ))}
+      </div>
+
+      {/* Timeline Section */}
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-blue-600/50" /></div>
+      ) : prazos.length === 0 ? (
+        <div className="bento-card text-center py-24">
+           <Clock className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-4" />
+           <p className="text-gray-500 dark:text-zinc-500 font-medium">Nenhum prazo para exibir neste filtro.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {prazos.map(prazo => {
+            const days = daysUntil(prazo.data_limite);
+            const overdue = prazo.status === 'pendente' && days < 0;
+            const urgent = prazo.status === 'pendente' && days >= 0 && days <= 3;
+
+            return (
+              <div key={prazo.id}
+                className={`bento-card flex items-center justify-between group h-24 ${
+                  overdue ? 'bg-red-500/[0.03] !border-red-500/20' : 
+                  urgent ? 'bg-orange-500/[0.03] !border-orange-500/20' : 
+                  'bg-white/50 dark:bg-white/[0.02]'
+                }`}
+              >
+                <div className="flex items-center gap-6">
+                  <button 
+                    onClick={() => toggleStatus(prazo)}
+                    className={`w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ${
+                      prazo.status === 'cumprido' 
+                        ? 'border-green-500 bg-green-500 shadow-lg shadow-green-500/20' 
+                        : 'border-gray-200 dark:border-zinc-800 hover:border-blue-500 hover:scale-110'
+                    }`}
+                  >
+                    {prazo.status === 'cumprido' && <CheckCircle2 className="w-5 h-5 text-white" />}
+                  </button>
+                  
+                  <div>
+                    <h3 className={`text-base font-bold transition-all ${
+                      prazo.status === 'cumprido' 
+                        ? 'text-gray-400 dark:text-zinc-600 line-through' 
+                        : 'text-gray-900 dark:text-white'
+                    }`}>
+                      {prazo.titulo}
+                    </h3>
+                    <div className="flex items-center gap-4 mt-1.5 font-medium tracking-tight">
+                      <span className={`text-[10px] font-black uppercase tracking-tighter px-2.5 py-0.5 rounded-lg border ${PRIORIDADE_COLORS[prazo.prioridade]}`}>
+                        {PRIORIDADE_LABELS[prazo.prioridade]}
+                      </span>
+                      <span className={`text-[11px] flex items-center gap-1.5 ${
+                        overdue ? 'text-red-500' : 
+                        urgent ? 'text-orange-500' : 
+                        'text-gray-500 dark:text-zinc-500'
+                      }`}>
+                        📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR')}
+                        <span className="opacity-50">•</span>
+                        {prazo.status === 'pendente' ? (
+                          overdue ? `${Math.abs(days)}d atrasado` : `${days}d restantes`
+                        ) : 'Concluído'}
+                      </span>
+                      {prazo.caso_titulo && (
+                        <span className="text-[11px] text-gray-400 dark:text-zinc-600 flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" /> {prazo.caso_titulo}
+                        </span>
+                      )}
                     </div>
+                  </div>
                 </div>
-            )}
 
-            {/* Filters */}
-            <div className="flex gap-2 mb-6">
-                {['', 'pendente', 'cumprido', 'expirado'].map(s => (
-                    <button key={s} onClick={() => setFilter(s)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-800'
-                            }`}>
-                        {s === '' ? 'Todos' : STATUS_LABELS[s as PrazoStatus]}
-                    </button>
-                ))}
-            </div>
-
-            {/* Timeline */}
-            {loading ? (
-                <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
-            ) : prazos.length === 0 ? (
-                <div className="text-center py-20">
-                    <Clock className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-zinc-700" />
-                    <p className="text-gray-500 dark:text-zinc-500">Nenhum prazo encontrado.</p>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <button onClick={() => openEdit(prazo)} className="p-3 rounded-2xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-blue-500 transition-all">
+                    <Edit3 className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => handleDelete(prazo.id)} className="p-3 rounded-2xl text-gray-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-all">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
-            ) : (
-                <div className="space-y-3">
-                    {prazos.map(prazo => {
-                        const days = daysUntil(prazo.data_limite);
-                        const overdue = prazo.status === 'pendente' && days < 0;
-                        const urgent = prazo.status === 'pendente' && days >= 0 && days <= 3;
-
-                        return (
-                            <div key={prazo.id}
-                                className={`bg-white dark:bg-zinc-900 border rounded-xl p-5 flex items-center justify-between transition-all group ${overdue ? 'border-red-500/30 bg-red-500/5' : urgent ? 'border-orange-500/20' : 'border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700'
-                                    }`}>
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => toggleStatus(prazo)}
-                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${prazo.status === 'cumprido' ? 'border-green-500 bg-green-500' : 'border-gray-300 dark:border-zinc-600 hover:border-blue-500'
-                                            }`}>
-                                        {prazo.status === 'cumprido' && <CheckCircle2 className="w-4 h-4 text-white" />}
-                                    </button>
-                                    <div>
-                                        <h3 className={`font-medium text-sm ${prazo.status === 'cumprido' ? 'text-gray-400 dark:text-zinc-500 line-through' : 'text-gray-900 dark:text-white'}`}>
-                                            {prazo.titulo}
-                                        </h3>
-                                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${PRIORIDADE_COLORS[prazo.prioridade]}`}>
-                                                {PRIORIDADE_LABELS[prazo.prioridade]}
-                                            </span>
-                                            <span className={`text-xs ${overdue ? 'text-red-500 dark:text-red-400 font-medium' : urgent ? 'text-orange-500 dark:text-orange-400' : 'text-gray-500 dark:text-zinc-500'}`}>
-                                                📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                                                {prazo.status === 'pendente' && (
-                                                    overdue ? ` (${Math.abs(days)} dia(s) atrás)` : ` (${days} dia(s))`
-                                                )}
-                                            </span>
-                                            {prazo.caso_titulo && <span className="text-xs text-gray-500 dark:text-zinc-600">📁 {prazo.caso_titulo}</span>}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                    <button onClick={() => openEdit(prazo)} className="text-gray-400 hover:text-blue-500 dark:text-zinc-400 dark:hover:text-blue-400 p-1"><Edit3 className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDelete(prazo.id)} className="text-gray-400 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 p-1"><Trash2 className="w-4 h-4" /></button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
             {/* Modal */}
             {showModal && (

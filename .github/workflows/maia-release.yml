@@ -1,0 +1,98 @@
+name: Maia Release Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [published]
+
+jobs:
+  build-rust-dll:
+    name: Build Rust Native Python Wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Maturin
+        run: pip install maturin
+      - name: Build Vetta DLP Wheel (Linux)
+        run: |
+          cd server/rust_core/vetta_dlp
+          maturin build --release -i python3.11 --out ../../wheels
+      - name: Build Setup Launcher Executable (Windows)
+        run: |
+          cd server/rust_core/themis_launcher
+          # Precondição the infraestrutura:
+          # rustup target add x86_64-pc-windows-gnu 
+          # Esta flag compila um arquivo .EXE puro compatível com qualquer Windows sem bibliotecas adicionais
+          cargo build --release 
+      - name: Upload Windows Setup.exe Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Themis-Setup-Installer
+          path: server/rust_core/themis_launcher/target/release/themis_launcher.exe
+      - name: Upload Wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-rust-wheels
+          path: server/wheels/
+
+  build-frontend:
+    name: Build React Frontend (Action Center)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './client/package-lock.json'
+      - name: Install and Build (Vite)
+        run: |
+          cd client
+          npm ci || npm install
+          npm run build
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist/
+
+  build-docker-matrix:
+    name: Build Multi-stage Docker Master
+    needs: [build-rust-dll, build-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Rust Wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: python-rust-wheels
+          path: server/wheels/
+
+      - name: Download Frontend Build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist/
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Em Produção rodaremos: docker buildx build --platform linux/amd64,linux/arm64 ...
+      - name: Build Vault Docker Image Test
+        run: |
+          echo "Simulating Cross Platform Build with QEMU for Maia Enterprise."
+          # docker build -t ghcr.io/vettahub/maia-vault:latest .

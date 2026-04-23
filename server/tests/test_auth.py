@@ -7,24 +7,52 @@ import os
 # Add parent to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from unittest.mock import MagicMock, patch, AsyncMock
 from main import app
-from database import connect_db, disconnect_db
 
 # Mark all tests in this file as async
 pytestmark = pytest.mark.asyncio
 
+@pytest.fixture(autouse=True)
+def mock_db():
+    # Helper to mock find_one for user/workspace
+    async def mock_find_one(filter, *args, **kwargs):
+        if "email" in filter and filter["email"] == "admin@testworkspace.local":
+            return {
+                "_id": "507f1f77bcf86cd799439011",
+                "email": "admin@testworkspace.local",
+                "hashed_password": "hashed_password_placeholder",
+                "is_active": True,
+                "workspace_id": "507f1f77bcf86cd799439012",
+                "role": "admin",
+                "name": "Test Admin"
+            }
+        if "workspace_name" in filter:
+            return None # For registration check
+        return None
+
+    async def mock_insert_one(doc, *args, **kwargs):
+        mock_result = MagicMock()
+        mock_result.inserted_id = "507f1f77bcf86cd799439011"
+        return mock_result
+
+    # Set up the mock collections
+    mock_db_instance = MagicMock()
+    mock_db_instance.__getitem__.return_value.find_one = AsyncMock(side_effect=mock_find_one)
+    mock_db_instance.__getitem__.return_value.count_documents = AsyncMock(return_value=0)
+    mock_db_instance.__getitem__.return_value.insert_one = AsyncMock(side_effect=mock_insert_one)
+    mock_db_instance.__getitem__.return_value.update_one = AsyncMock(return_value=MagicMock())
+    mock_db_instance.__getitem__.return_value.delete_one = AsyncMock(return_value=MagicMock())
+    
+    with patch("database._database", mock_db_instance):
+        with patch("database.get_database", return_value=mock_db_instance):
+            yield mock_db_instance
+
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an instance of the default event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
-
-@pytest.fixture(autouse=True)
-async def setup_db():
-    await connect_db()
-    yield
-    await disconnect_db()
 
 @pytest.fixture
 async def client():
@@ -40,8 +68,9 @@ async def test_register_workspace_success(client: AsyncClient):
         "password": "StrongPassword123!"
     }
     
-    # Run the register request
-    response = await client.post("/auth/register", json=payload)
+    with patch("services.auth_service.hash_password", return_value="hashed_password_placeholder"):
+        # Run the register request
+        response = await client.post("/auth/register", json=payload)
     
     # We expect 200 or 400 (if email already registered from previous run without DB wipe)
     if response.status_code == 400 and "E-mail j\u00e1 cadastrado" in response.text:
@@ -62,7 +91,8 @@ async def test_login_success(client: AsyncClient):
         "email": "admin@testworkspace.local",
         "password": "StrongPassword123!"
     }
-    response = await client.post("/auth/login", json=payload)
+    with patch("services.auth_service.verify_password", return_value=True):
+        response = await client.post("/auth/login", json=payload)
     
     # If the user wasn't registered because of DB state, this might fail, 
     # but theoretically it runs after the register test
@@ -78,7 +108,8 @@ async def test_login_failure(client: AsyncClient):
         "email": "admin@testworkspace.local",
         "password": "WrongPassword!"
     }
-    response = await client.post("/auth/login", json=payload)
+    with patch("services.auth_service.verify_password", return_value=False):
+        response = await client.post("/auth/login", json=payload)
     if response.status_code == 500:
         print("ERROR 500 Login Failure:", response.text)
     assert response.status_code == 401

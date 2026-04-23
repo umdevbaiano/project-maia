@@ -11,6 +11,7 @@ interface AuthContextType {
     register: (request: RegisterRequest) => Promise<void>;
     verifyRegister: (request: VerifyRegistrationRequest) => Promise<void>;
     logout: () => void;
+    completeOnboarding: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -98,6 +99,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem(USER_KEY);
     }, []);
 
+    const completeOnboarding = useCallback(() => {
+        if (user) {
+            const updatedUser = { ...user, workspace_onboarding_completed: true };
+            setUser(updatedUser);
+            localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+        }
+    }, [user]);
+
     return (
         <AuthContext.Provider
             value={{
@@ -109,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 register,
                 verifyRegister,
                 logout,
+                completeOnboarding,
             }}
         >
             {children}

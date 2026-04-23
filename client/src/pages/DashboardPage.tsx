@@ -1,19 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Briefcase, Users, FileText, Clock, AlertTriangle, Scale,
-  ArrowRight, Loader2, ScrollText, TrendingUp
+  Briefcase, Users, FileText, Clock, AlertTriangle,
+  ArrowRight, Loader2, ScrollText, TrendingUp,
+  Activity, Calendar, ChevronRight, Zap
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
-  AreaChart, Area, ResponsiveContainer, Legend
+  PieChart, Pie, Cell, XAxis, YAxis, Tooltip,
+  AreaChart, Area, ResponsiveContainer, CartesianGrid
 } from 'recharts';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { cn } from '../utils/cn';
 
 const COLORS_STATUS = ['#3b82f6', '#22c55e', '#f59e0b', '#6366f1', '#ef4444'];
-const COLORS_TIPO = ['#6366f1', '#3b82f6', '#14b8a6', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#64748b'];
-const COLORS_PRAZOS = ['#f59e0b', '#ef4444', '#22c55e'];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      duration: 0.5, 
+      ease: [0.22, 1, 0.36, 1] as any
+    } 
+  }
+};
 
 interface DashboardStats {
   totals: {
@@ -27,23 +51,28 @@ interface DashboardStats {
   cases_by_type: Array<{ name: string; value: number; key: string }>;
   cases_by_month: Array<{ name: string; processos: number; prazos: number }>;
   deadlines_summary: Array<{ name: string; value: number; color: string }>;
+  predictive_summary?: {
+    avg_score: number;
+    analyzed_count: number;
+  };
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{
-      background: 'rgba(24,24,27,0.95)', border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: '8px', padding: '0.5rem 0.75rem',
-    }}>
-      <p style={{ margin: 0, fontSize: '0.75rem', color: '#a1a1aa', marginBottom: '0.25rem' }}>{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.name} style={{ margin: 0, fontSize: '0.8rem', color: p.color, fontWeight: 600 }}>
-          {p.name}: {p.value}
-        </p>
-      ))}
-    </div>
-  );
+  if (active && payload && payload.length) {
+    return (
+      <div className="glass-premium p-4 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl">
+        <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-3 py-1">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
+            <span className="text-xs font-bold text-gray-700 dark:text-zinc-300 capitalize">{entry.name}:</span>
+            <span className="text-xs font-black ml-auto">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
 };
 
 const DashboardPage: React.FC = () => {
@@ -82,11 +111,11 @@ const DashboardPage: React.FC = () => {
   }
 
   const statCards = [
-    { label: 'Processos', value: stats?.totals.casos || 0, icon: Briefcase, color: 'blue', link: '/casos' },
-    { label: 'Clientes', value: stats?.totals.clientes || 0, icon: Users, color: 'purple', link: '/clientes' },
-    { label: 'Documentos', value: stats?.totals.documentos || 0, icon: FileText, color: 'emerald', link: '/documentos' },
-    { label: 'Prazos', value: stats?.totals.prazos || 0, icon: Clock, color: 'orange', link: '/prazos' },
-    { label: 'Peças Geradas', value: stats?.totals.pecas || 0, icon: ScrollText, color: 'violet', link: '/pecas' },
+    { label: 'Processos', value: stats?.totals.casos || 0, icon: Briefcase, color: 'blue', link: '/app/casos' },
+    { label: 'Clientes', value: stats?.totals.clientes || 0, icon: Users, color: 'purple', link: '/app/clientes' },
+    { label: 'Documentos', value: stats?.totals.documentos || 0, icon: FileText, color: 'emerald', link: '/app/documentos' },
+    { label: 'Prazos', value: stats?.totals.prazos || 0, icon: Clock, color: 'orange', link: '/app/prazos' },
+    { label: 'Peças Geradas', value: stats?.totals.pecas || 0, icon: ScrollText, color: 'violet', link: '/app/pecas' },
   ];
 
   const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
@@ -98,216 +127,259 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-          <Scale className="w-7 h-7 text-blue-500" />
-          Olá, {user?.name?.split(' ')[0] || 'Advogado'}
-        </h1>
-        <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">Visão geral do escritório</p>
-      </div>
-
-      {/* Overdue Alert */}
-      {alerts.overdue.length > 0 && (
-        <Link to="/prazos" className="block mb-6">
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 hover:bg-red-500/15 transition-all">
-            <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-red-400 font-medium">⚠️ {alerts.overdue.length} prazo(s) vencido(s)!</p>
-              <p className="text-red-400/70 text-sm">{alerts.overdue.map((p: any) => p.titulo).join(', ')}</p>
-            </div>
-            <ArrowRight className="w-5 h-5 text-red-400" />
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="p-10 space-y-10 max-w-[1600px] mx-auto"
+    >
+      {/* Premium Header */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
+        <motion.div variants={itemVariants}>
+          <div className="flex items-center gap-4 mb-2">
+            <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] border border-blue-500/10">
+              Ambiente Inteligente
+            </span>
+            <div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
+              Versão 2.5 • Premium
+            </span>
           </div>
-        </Link>
+          <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight">
+            Seja bem-vindo, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">{user?.name?.split(' ')[0] || 'Doutor'}</span>
+          </h1>
+          <p className="text-gray-500 dark:text-zinc-400 font-medium mt-2 flex items-center gap-2">
+            Sua operação jurídica está <span className="text-emerald-500 font-bold flex items-center gap-1"><Activity className="w-3 h-3" /> normalizada</span> e rodando em alta performance.
+          </p>
+        </motion.div>
+        
+        <motion.div variants={itemVariants} className="flex items-center gap-4 text-sm">
+          <Link to="/app/chat" className="btn-maia-primary shadow-xl shadow-blue-500/20 px-8">
+            <Zap className="w-4 h-4 fill-current" />
+            Central de Comando Maia
+          </Link>
+        </motion.div>
+      </header>
+
+      {/* Critical Alert Ribbon */}
+      {alerts.overdue.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <Link to="/app/prazos" className="block group">
+            <div className="relative overflow-hidden bg-red-600 rounded-[2.5rem] p-8 flex items-center gap-8 shadow-2xl shadow-red-600/20 group-hover:scale-[1.01] transition-all duration-500">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/20 transition-all" />
+              <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:rotate-12 transition-transform">
+                <AlertTriangle className="w-10 h-10" />
+              </div>
+              <div className="flex-1 text-white">
+                <p className="font-black text-2xl tracking-tight">ALERTA CRÍTICO DE PERFORMANCE</p>
+                <p className="text-white/80 font-medium text-lg">
+                  {alerts.overdue.length} prazos expiraram. Sua atenção imediata é mandatória para evitar sanções.
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-red-600 shadow-xl group-hover:translate-x-2 transition-transform">
+                <ChevronRight className="w-8 h-8" />
+              </div>
+            </div>
+          </Link>
+        </motion.div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        {statCards.map(stat => {
-          const Icon = stat.icon;
-          const colors = colorMap[stat.color];
-          return (
-            <Link key={stat.label} to={stat.link}
-              className={`${colors.bg} border ${colors.border} rounded-xl p-5 hover:scale-[1.02] transition-all`}>
-              <div className="flex items-center justify-between mb-3">
-                <Icon className={`w-6 h-6 ${colors.icon}`} />
-                <TrendingUp className={`w-4 h-4 ${colors.icon} opacity-50`} />
+      {/* Main Asymmetric Bento Grid (12-column layout) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+        
+        {/* HERO STATS - High visibility (Spans 12 columns) */}
+        <motion.section 
+          variants={itemVariants}
+          className="md:col-span-12 flex flex-wrap items-center justify-between gap-6 p-1 bg-gray-100 dark:bg-white/5 rounded-[2.5rem] border border-black/5 dark:border-white/5"
+        >
+          {statCards.map((stat) => {
+            const colors = colorMap[stat.color] || colorMap.blue;
+            return (
+              <Link key={stat.label} to={stat.link} className="flex-1 min-w-[150px] p-6 rounded-[2.2rem] flex flex-col items-center group transition-all hover:bg-white dark:hover:bg-white/5 hover:shadow-xl hover:glow-blue">
+                <div className={cn("p-4 rounded-2xl mb-4 transition-all group-hover:scale-110", colors.bg)}>
+                  <stat.icon className={cn("w-6 h-6", colors.icon)} />
+                </div>
+                <p className="text-4xl font-black mb-1">{stat.value}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40">{stat.label}</p>
+              </Link>
+            );
+          })}
+        </motion.section>
+
+        {/* PREDICTIVE INSIGHT - New AI card (Spans 4 columns) */}
+        <motion.section variants={itemVariants} className="md:col-span-4 bento-card relative overflow-hidden bg-gradient-to-br from-indigo-600 to-blue-700 text-white border-none">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] mb-8 opacity-70 flex items-center gap-2">
+            <Zap className="w-4 h-4 fill-current" /> Inteligência Preditiva
+          </h3>
+          <div className="flex flex-col items-center justify-center text-center py-4">
+            <div className="relative mb-6">
+              <svg className="w-32 h-32 transform -rotate-90">
+                <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-white/10" />
+                <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={364} strokeDashoffset={364 - (364 * (stats?.predictive_summary?.avg_score || 0)) / 100} className="text-white transition-all duration-1000 ease-out" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-black">{stats?.predictive_summary?.avg_score || 0}%</span>
+                <span className="text-[8px] font-black uppercase opacity-60">Êxito Médio</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-              <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{stat.label}</p>
+            </div>
+            <p className="text-sm font-bold opacity-90">Análise de IA concluída em {stats?.predictive_summary?.analyzed_count || 0} processos.</p>
+            <p className="text-[10px] opacity-60 mt-2 italic px-4">
+              A média baseia-se em heurísticas de jurisprudência e complexidade fatual.
+            </p>
+          </div>
+        </motion.section>
+
+        {/* ANALYTICS MAIN - Deep Strategic view (Spans 8 columns) */}
+        <motion.section variants={itemVariants} className="md:col-span-8 bento-card">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h3 className="text-xl font-black flex items-center gap-3">
+                <TrendingUp className="w-6 h-6 text-blue-500" /> 
+                Escalamento Operacional
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1 font-medium italic">Monitoramento de processos e prazos no último semestre</p>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span className="text-[10px] font-black uppercase opacity-60">Processos</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span className="text-[10px] font-black uppercase opacity-60">Prazos</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-[380px] w-full mt-4">
+             <ResponsiveContainer width="100%" height="100%">
+               <AreaChart data={stats?.cases_by_month || []}>
+                 <defs>
+                   <linearGradient id="colorProc" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                     <stop offset="100%" stopColor="#3b82f6" stopOpacity={0}/>
+                   </linearGradient>
+                   <linearGradient id="colorPrazo" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.15}/>
+                     <stop offset="100%" stopColor="#f59e0b" stopOpacity={0}/>
+                   </linearGradient>
+                 </defs>
+                 <CartesianGrid vertical={false} stroke="rgba(148, 163, 184, 0.05)" />
+                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} dy={15} />
+                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} dx={-10} />
+                 <Tooltip content={<CustomTooltip />} cursor={{stroke: 'rgba(59, 130, 246, 0.2)', strokeWidth: 2}} />
+                 <Area type="monotone" dataKey="processos" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorProc)" animationDuration={2000} />
+                 <Area type="monotone" dataKey="prazos" stroke="#f59e0b" strokeWidth={4} fillOpacity={1} fill="url(#colorPrazo)" animationDuration={2000} />
+               </AreaChart>
+             </ResponsiveContainer>
+          </div>
+        </motion.section>
+
+        {/* STATUS PIE - Compact Visualization (Spans 4 columns) */}
+        <motion.section variants={itemVariants} className="md:col-span-4 bento-card flex flex-col h-full bg-blue-500/[0.01] dark:bg-blue-500/[0.005]">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] mb-10 opacity-50 flex items-center gap-2">
+            <Activity className="w-4 h-4" /> Distribuição de Status
+          </h3>
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="w-full h-[240px] relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats?.cases_by_status || []}
+                    innerRadius={75} outerRadius={95}
+                    paddingAngle={8} dataKey="value"
+                    animationDuration={1500}
+                    stroke="none"
+                  >
+                    {stats?.cases_by_status.map((_, i) => (
+                      <Cell key={i} fill={COLORS_STATUS[i % COLORS_STATUS.length]} className="hover:opacity-80 transition-opacity" />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-4xl font-black">{stats?.totals.casos || 0}</span>
+                <span className="text-[9px] font-black uppercase opacity-40">Total Ativo</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-y-4 mt-10 w-full px-6 overflow-y-auto max-h-[150px] scrollbar-hide">
+               {stats?.cases_by_status.map((item, i) => (
+                 <div key={item.name} className="flex items-center group cursor-default">
+                   <div className="w-3 h-3 rounded-full mr-4 group-hover:scale-125 transition-transform" style={{backgroundColor: COLORS_STATUS[i % COLORS_STATUS.length]}} />
+                   <span className="text-[11px] font-black text-gray-500 dark:text-zinc-500 uppercase tracking-tight truncate">{item.name}</span>
+                   <span className="ml-auto text-xs font-black">{item.value}</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* TIMELINE/AGENDA - Tactical focus (Spans 4 columns) */}
+        <motion.section variants={itemVariants} className="md:col-span-4 bento-card border-orange-500/10 dark:border-orange-500/5 bg-orange-500/[0.01]">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-50 flex items-center gap-2">
+              <Calendar className="w-4 h-4" /> Cronograma Crítico
+            </h3>
+            <Link to="/app/prazos" className="p-2 rounded-xl bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 transition-all">
+              <ArrowRight className="w-5 h-5" />
             </Link>
-          );
-        })}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Cases by Status - Pie */}
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-300 mb-4 uppercase tracking-wider">Status dos Processos</h3>
-          {stats && stats.cases_by_status.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={stats.cases_by_status}
-                  cx="50%" cy="50%"
-                  innerRadius={50} outerRadius={80}
-                  paddingAngle={3} dataKey="value"
-                >
-                  {stats.cases_by_status.map((_, i) => (
-                    <Cell key={i} fill={COLORS_STATUS[i % COLORS_STATUS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  formatter={(value: string) => <span style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>{value}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px] text-gray-400 dark:text-zinc-600 text-sm">Sem dados</div>
-          )}
-        </div>
-
-        {/* Cases by Type - Bar */}
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-300 mb-4 uppercase tracking-wider">Por Área do Direito</h3>
-          {stats && stats.cases_by_type.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={stats.cases_by_type}>
-                <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Processos" radius={[6, 6, 0, 0]}>
-                  {stats.cases_by_type.map((_, i) => (
-                    <Cell key={i} fill={COLORS_TIPO[i % COLORS_TIPO.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px] text-gray-400 dark:text-zinc-600 text-sm">Sem dados</div>
-          )}
-        </div>
-
-        {/* Deadlines Summary - Pie */}
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-300 mb-4 uppercase tracking-wider">Situação dos Prazos</h3>
-          {stats && stats.deadlines_summary.some(d => d.value > 0) ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={stats.deadlines_summary}
-                  cx="50%" cy="50%"
-                  innerRadius={50} outerRadius={80}
-                  paddingAngle={3} dataKey="value"
-                >
-                  {stats.deadlines_summary.map((entry, i) => (
-                    <Cell key={i} fill={entry.color || COLORS_PRAZOS[i]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  formatter={(value: string) => <span style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>{value}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px] text-gray-400 dark:text-zinc-600 text-sm">Sem dados</div>
-          )}
-        </div>
-      </div>
-
-      {/* Timeline + Lists Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Monthly Timeline */}
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-6 lg:col-span-1">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-300 mb-4 uppercase tracking-wider">Últimos 6 Meses</h3>
-          {stats && stats.cases_by_month.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={stats.cases_by_month}>
-                <defs>
-                  <linearGradient id="gradProcessos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gradPrazos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="processos" name="Processos" stroke="#6366f1" fill="url(#gradProcessos)" strokeWidth={2} />
-                <Area type="monotone" dataKey="prazos" name="Prazos" stroke="#f59e0b" fill="url(#gradPrazos)" strokeWidth={2} />
-                <Legend
-                  formatter={(value: string) => <span style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>{value}</span>}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px] text-gray-400 dark:text-zinc-600 text-sm">Sem dados</div>
-          )}
-        </div>
-
-        {/* Upcoming Deadlines */}
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-orange-400" /> Próximos Prazos
-            </h3>
-            <Link to="/prazos" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1">Ver todos <ArrowRight className="w-3 h-3" /></Link>
           </div>
-          {alerts.upcoming.length > 0 ? (
-            <div className="space-y-3">
-              {alerts.upcoming.slice(0, 5).map((prazo: any) => (
-                <div key={prazo.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-zinc-800/50 last:border-0">
-                  <div>
-                    <p className="text-sm text-gray-900 dark:text-white font-medium">{prazo.titulo}</p>
-                    {prazo.caso_titulo && <p className="text-xs text-gray-500 dark:text-zinc-500">📁 {prazo.caso_titulo}</p>}
+          <div className="space-y-6">
+            {alerts.upcoming.length > 0 ? alerts.upcoming.slice(0, 4).map((prazo: any) => (
+              <div key={prazo.id} className="group cursor-pointer">
+                <div className="flex items-start gap-4">
+                  <div className="mt-1 w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md uppercase tracking-tighter">Imediato</span>
+                      <span className="text-[10px] font-bold text-gray-400 group-hover:text-blue-500 transition-colors uppercase">{new Date(prazo.data_limite).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}</span>
+                    </div>
+                    <p className="text-sm font-black text-gray-900 dark:text-white group-hover:translate-x-1 transition-transform">{prazo.titulo}</p>
+                    <p className="text-[10px] text-gray-400 mt-1 truncate">{prazo.caso_titulo || 'Processo não vinculado'}</p>
                   </div>
-                  <span className="text-xs text-orange-400 font-medium whitespace-nowrap">
-                    📅 {new Date(prazo.data_limite).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                  </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 dark:text-zinc-500 text-sm py-4 text-center">Nenhum prazo próximo.</p>
-          )}
-        </div>
-
-        {/* Recent Cases */}
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-blue-400" /> Processos Recentes
-            </h3>
-            <Link to="/casos" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1">Ver todos <ArrowRight className="w-3 h-3" /></Link>
+              </div>
+            )) : (
+              <div className="py-12 flex flex-col items-center justify-center text-center opacity-40">
+                <Calendar className="w-10 h-10 mb-2" />
+                <p className="text-[10px] font-black uppercase">Agenda livre</p>
+              </div>
+            )}
           </div>
-          {recentCasos.length > 0 ? (
-            <div className="space-y-3">
-              {recentCasos.map((caso: any) => (
-                <div key={caso.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-zinc-800/50 last:border-0">
-                  <div>
-                    <p className="text-sm text-gray-900 dark:text-white font-medium">{caso.titulo}</p>
-                    <p className="text-xs text-gray-500 dark:text-zinc-500 font-mono">{caso.numero}</p>
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${caso.status === 'em_andamento' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
-                    caso.status === 'ativo' ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20' :
-                      'bg-gray-100 text-gray-500 border-gray-200 dark:bg-zinc-500/10 dark:text-zinc-400 dark:border-zinc-500/20'
-                    }`}>{caso.status}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 dark:text-zinc-500 text-sm py-4 text-center">Nenhum processo cadastrado.</p>
-          )}
-        </div>
+        </motion.section>
+
+        {/* RECENT MOVEMENTS - Details (Spans 8 columns) */}
+        <motion.section variants={itemVariants} className="md:col-span-8 bento-card bg-blue-500/[0.01]">
+           <div className="flex items-center justify-between mb-8">
+             <h3 className="text-xs font-black uppercase tracking-[0.2em] opacity-50 flex items-center gap-2">
+               <Activity className="w-4 h-4" /> Movimentações de Inteligência
+             </h3>
+             <Link to="/app/casos" className="text-[10px] font-black uppercase text-blue-600 hover:tracking-widest transition-all">Ver todos</Link>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             {recentCasos.slice(0, 4).map((caso) => (
+               <div key={caso.id} className="relative flex items-center gap-5 p-4 rounded-3xl bg-white/50 dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.05] hover:border-blue-500/20 transition-all group cursor-pointer hover:shadow-xl hover:glow-blue">
+                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center text-blue-600 border border-blue-500/5 group-hover:scale-110 transition-transform">
+                    <ScrollText className="w-6 h-6" />
+                 </div>
+                 <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">{caso.titulo}</p>
+                    <div className="flex items-center gap-3 mt-1 opacity-50">
+                      <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-500 font-mono italic">{caso.numero}</span>
+                      <div className="w-1 h-1 rounded-full bg-gray-400" />
+                      <span className="text-[9px] font-black uppercase tracking-tighter">{caso.tipo_processo || 'Geral'}</span>
+                    </div>
+                 </div>
+                 <ChevronRight className="w-4 h-4 text-gray-300 dark:text-zinc-700 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
+               </div>
+             ))}
+           </div>
+        </motion.section>
+
       </div>
-    </div>
+    </motion.div>
   );
 };
 

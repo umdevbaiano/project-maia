@@ -13,6 +13,7 @@ from database import get_database
 from core.ai.factory import get_ai_provider
 from models.chat import QuickChatRequest, QuickChatResponse, ChatHistoryResponse
 from services import chat_service
+from services.saas_service import check_and_increment_ai_quota
 from middleware import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -44,14 +45,22 @@ async def quick_chat(
     """
     try:
         db = get_database()
-        ai_provider = get_ai_provider()
         workspace_id = current_user["_workspace_id"]
+        
+        try:
+            await check_and_increment_ai_quota(db, workspace_id)
+        except ValueError as ve:
+            raise HTTPException(status_code=402, detail=str(ve))
+
+        ai_provider = get_ai_provider()
         user_id = current_user["_user_id"]
         reply = await chat_service.send_message(
             db, request.currentMessage, ai_provider, workspace_id, user_id,
             caso_id=request.caso_id,
         )
         return QuickChatResponse(reply=reply)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing chat: {str(e)}")
 
@@ -70,6 +79,11 @@ async def stream_chat(
     ai_provider = get_ai_provider()
     workspace_id = current_user["_workspace_id"]
     user_id = current_user["_user_id"]
+
+    try:
+        await check_and_increment_ai_quota(db, workspace_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=402, detail=str(ve))
 
     async def event_generator():
         try:

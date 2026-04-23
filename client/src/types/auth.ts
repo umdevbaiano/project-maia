@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   workspace_id: string;
   workspace_name: string;
+  workspace_onboarding_completed: boolean;
   is_active: boolean;
 }
 

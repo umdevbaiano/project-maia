@@ -8,6 +8,9 @@ export interface Peca {
     caso_titulo?: string;
     cliente_id?: string;
     cliente_nome?: string;
+    signature_status: 'unsigned' | 'pending' | 'signed' | string;
+    signature_id?: string;
+    signature_url?: string;
     workspace_id: string;
     created_at: string;
 }
@@ -26,4 +29,6 @@ export const TIPO_PECA_OPTIONS = [
     { value: 'peticao_simples', label: 'Petição Simples' },
     { value: 'parecer', label: 'Parecer Jurídico' },
     { value: 'contrato', label: 'Contrato' },
+    { value: 'procuracao', label: 'Procuração' },
+    { value: 'declaracao_hipossuficiencia', label: 'Declaração de Hipossuficiência' },
 ];

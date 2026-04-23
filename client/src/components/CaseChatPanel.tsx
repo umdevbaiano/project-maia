@@ -50,19 +50,17 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
         setInput('');
         setSending(true);
 
-        // Optimistic UI
         const tempUserMsg: Message = {
             id: `temp-${Date.now()}`,
             role: 'user',
             content: userMsg,
             timestamp: new Date().toISOString(),
         };
-        setMessages(prev => [...prev, tempUserMsg]);
 
-        // Add streaming AI message placeholder
         const streamingId = `streaming-${Date.now()}`;
         setMessages(prev => [
             ...prev,
+            tempUserMsg,
             { id: streamingId, role: 'ai', content: '', timestamp: new Date().toISOString() },
         ]);
 
@@ -84,7 +82,6 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
             const decoder = new TextDecoder();
             if (!reader) throw new Error('No reader available');
 
-            // Read stream
             let buffer = '';
 
             while (true) {
@@ -93,52 +90,37 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
-
-                // Keep the last partial line in the buffer
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
                     const trimmedLine = line.trim();
-                    if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+                    if (!trimmedLine.startsWith('data: ')) continue;
 
                     try {
                         const data = JSON.parse(trimmedLine.slice(6));
 
                         if (data.chunk) {
-                            setMessages(prev =>
-                                prev.map(msg =>
-                                    msg.id === streamingId
-                                        ? { ...msg, content: msg.content + data.chunk }
-                                        : msg
-                                )
-                            );
+                            setMessages(prev => prev.map(msg =>
+                                msg.id === streamingId ? { ...msg, content: msg.content + data.chunk } : msg
+                            ));
                         }
                         if (data.done) {
-                            setMessages(prev =>
-                                prev.map(msg =>
-                                    msg.id === streamingId ? { ...msg, id: `ai-${Date.now()}`, content: data.reply } : msg
-                                )
-                            );
+                            setMessages(prev => prev.map(msg =>
+                                msg.id === streamingId ? { ...msg, id: `ai-${Date.now()}`, content: data.reply } : msg
+                            ));
                         }
                         if (data.error) throw new Error(data.error);
-                    } catch (parseErr) {
-                        // Skip malformed SSE lines silently
-                    }
+                    } catch (e) { /* Ignore malformed SSE */ }
                 }
             }
         } catch (error: any) {
-            setMessages(prev =>
-                prev.map(msg =>
-                    msg.id === streamingId
-                        ? { ...msg, content: '⚠️ Erro ao processar sua mensagem. Tente novamente.', id: `err-${Date.now()}` }
-                        : msg
-                )
-            );
+            setMessages(prev => prev.map(msg =>
+                msg.id === streamingId ? { ...msg, content: '⚠️ Erro ao processar sua mensagem. Tente novamente.', id: `err-${Date.now()}` } : msg
+            ));
         } finally {
             setSending(false);
         }
     };
-
 
     const handleClear = async () => {
         if (!confirm('Limpar histórico de chat deste processo?')) return;
@@ -152,7 +134,6 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-zinc-950/40 rounded-2xl border border-violet-500/20 overflow-hidden shadow-xl">
-            {/* Header */}
             <div className="flex flex-col border-b border-gray-200 dark:border-white/5 bg-violet-500/5 dark:bg-violet-500/10">
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -173,7 +154,6 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                         </button>
                     </div>
                 </div>
-                {/* Context Indicator Badge */}
                 <div className="px-4 pb-2">
                     <div className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 text-[0.65rem] px-2 py-0.5 rounded-full border border-violet-200 dark:border-violet-500/30">
                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span>
@@ -182,7 +162,6 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                 </div>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                 {loading ? (
                     <div className="text-center p-8 opacity-50 dark:text-white text-gray-900">
@@ -192,17 +171,14 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                     <div className="text-center p-8 opacity-50 dark:opacity-40 text-gray-900 dark:text-white flex flex-col items-center">
                         <MessageSquare className="w-8 h-8 mb-2" />
                         <p className="m-0 text-[0.85rem]">Converse com a Maia sobre este processo</p>
-                        <p className="m-1 text-[0.75rem]">
-                            Ela tem acesso ao dados do caso, prazos e legislação
-                        </p>
+                        <p className="m-1 text-[0.75rem]">Ela tem acesso ao dados do caso, prazos e legislação</p>
                     </div>
                 ) : messages.map(msg => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`p-3 rounded-2xl max-w-[85%] ${msg.role === 'user'
-                            ? 'bg-violet-600 dark:bg-violet-500 text-white rounded-br-none shadow-sm'
-                            : 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 border border-gray-100 dark:border-white/10 rounded-bl-none shadow-sm'
+                        <div className={`p-3 rounded-2xl max-w-[85%] shadow-sm ${msg.role === 'user'
+                            ? 'bg-violet-600 dark:bg-violet-500 text-white rounded-br-none'
+                            : 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 border border-gray-100 dark:border-white/10 rounded-bl-none'
                             }`}>
-
                             {msg.id && msg.id.toString().startsWith('streaming-') && msg.content === '' ? (
                                 <div className="flex items-center gap-3 py-1">
                                     <div className="flex gap-1.5">
@@ -217,7 +193,8 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                                 </div>
                             )}
-                        </div>                    </div>
+                        </div>
+                    </div>
                 ))}
                 {sending && (
                     <div className="flex justify-start">
@@ -230,7 +207,6 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <div className="p-3 border-t border-gray-200 dark:border-white/5 flex gap-2">
                 <input
                     value={input}
@@ -251,21 +227,6 @@ export default function CaseChatPanel({ casoId, casoTitulo, onClose }: CaseChatP
                     <Send className="w-4 h-4" />
                 </button>
             </div>
-
-            <style>{`
-                .markdown-chat h2 { font-size: 0.95rem; font-weight: 700; margin: 0.5rem 0 0.25rem; }
-                .markdown-chat h3 { font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0.2rem; }
-                .markdown-chat p { margin: 0.25rem 0; }
-                .markdown-chat ul, .markdown-chat ol { margin: 0.25rem 0; padding-left: 1.25rem; }
-                .markdown-chat li { margin: 0.1rem 0; }
-                .markdown-chat strong { color: #8b5cf6; font-weight: 700; }
-                .markdown-chat blockquote { border-left: 3px solid #7c3aed; padding-left: 0.75rem; margin: 0.5rem 0; opacity: 0.85; font-style: italic; }
-                .markdown-chat table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.8rem; }
-                .markdown-chat th, .markdown-chat td { border: 1px solid rgba(128,128,128,0.3); padding: 0.3rem 0.5rem; text-align: left; }
-                .markdown-chat th { background: rgba(124,58,237,0.1); font-weight: 600; }
-                .markdown-chat hr { border: none; border-top: 1px solid rgba(128,128,128,0.3); margin: 0.5rem 0; }
-                .markdown-chat code { background: rgba(128,128,128,0.15); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.8rem; }
-            `}</style>
         </div>
     );
 }

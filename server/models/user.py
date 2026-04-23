@@ -2,7 +2,7 @@
 Maia Platform — User & Workspace Models
 Pydantic models for authentication, RBAC, and multi-tenancy.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from enum import Enum
 
@@ -22,6 +22,11 @@ class WorkspaceInDB(BaseModel):
     workspace_name: str
     document: str  # CNPJ or CPF
     admin_email: str
+    onboarding_completed: bool = False
+    plan: str = "basic"
+    ai_calls_count: int = 0
+    ai_calls_reset_date: datetime | None = None
+    storage_bytes_used: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -44,7 +49,16 @@ class RegisterWorkspaceRequest(BaseModel):
     document: str = Field(..., min_length=11, max_length=18)  # CPF or CNPJ
     admin_name: str = Field(..., min_length=2, max_length=100)
     admin_email: str = Field(..., min_length=5)
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not any(c.isdigit() for c in v):
+            raise ValueError("A senha deve conter pelo menos um número.")
+        if not any(c.isalpha() for c in v):
+            raise ValueError("A senha deve conter pelo menos uma letra.")
+        return v
 
 
 class VerifyRegistrationRequest(BaseModel):
@@ -69,7 +83,16 @@ class InviteRequest(BaseModel):
 class AcceptInviteRequest(BaseModel):
     """Accept an invite and set password."""
     token: str
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not any(c.isdigit() for c in v):
+            raise ValueError("A senha deve conter pelo menos um número.")
+        if not any(c.isalpha() for c in v):
+            raise ValueError("A senha deve conter pelo menos uma letra.")
+        return v
 
 
 # --- Response Models ---
@@ -82,6 +105,7 @@ class UserResponse(BaseModel):
     role: UserRole
     workspace_id: str
     workspace_name: str = ""
+    workspace_onboarding_completed: bool = False
     is_active: bool = True
 
 
@@ -97,4 +121,8 @@ class WorkspaceResponse(BaseModel):
     id: str
     workspace_name: str
     document: str
+    onboarding_completed: bool = False
+    plan: str
+    ai_calls_count: int
+    storage_bytes_used: int
     created_at: str

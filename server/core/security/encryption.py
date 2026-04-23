@@ -22,10 +22,10 @@ def _get_key() -> bytes:
     if key_hex and len(key_hex) >= 64:
         _KEY = bytes.fromhex(key_hex[:64])
     else:
-        # Fallback: derive from a default (development only)
-        import hashlib
-        seed = os.getenv("JWT_SECRET", "maia-dev-key-unsafe")
-        _KEY = hashlib.sha256(seed.encode()).digest()
+        raise RuntimeError(
+            "ENCRYPTION_KEY environment variable is required and must be a 64-character hex string (256-bit key).\n"
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
 
     return _KEY
 
