@@ -13,8 +13,8 @@ services:
   - type: web
     name: maia-backend
     env: docker
-    dockerContext: ./server
-    dockerfilePath: ./server/Dockerfile
+    rootDir: server
+    dockerfilePath: Dockerfile
     region: ohio # Altere para frankfurt ou oregon se preferir
     plan: starter # Starter ($7/mês) sugerido para processamento de IA/Python
     healthCheckPath: /health # Supondo que você crie/tenha uma rota /health ou / na sua API
