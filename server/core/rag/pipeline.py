@@ -11,21 +11,30 @@ from typing import Optional
 from rank_bm25 import BM25Okapi
 import asyncio
 
+import os
+
 from config import get_settings
 from core.rag.embeddings import get_chroma_embedding_function
 from core.ai.factory import get_ai_provider
 
 
-# Global ChromaDB client (lazy-loaded)
-_chroma_client: Optional[chromadb.HttpClient] = None
+_chroma_client: Optional[chromadb.ClientAPI] = None
 
 
-def _get_chroma() -> chromadb.HttpClient:
+def _get_chroma() -> chromadb.ClientAPI:
     global _chroma_client
     if _chroma_client is None:
         settings = get_settings()
-        _chroma_client = chromadb.HttpClient(host=settings.CHROMA_URL.replace("http://", "").split(":")[0],
-                                             port=int(settings.CHROMA_URL.split(":")[-1]))
+        chroma_url = getattr(settings, "CHROMA_URL", "")
+        if chroma_url and not chroma_url.startswith("local"):
+            _chroma_client = chromadb.HttpClient(
+                host=chroma_url.replace("http://", "").split(":")[0],
+                port=int(chroma_url.split(":")[-1])
+            )
+        else:
+            persist_dir = os.environ.get("CHROMA_PERSIST_DIR", "/tmp/chroma_data")
+            os.makedirs(persist_dir, exist_ok=True)
+            _chroma_client = chromadb.PersistentClient(path=persist_dir)
     return _chroma_client
 
 

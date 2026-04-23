@@ -4,13 +4,10 @@ services:
     runtime: docker
     dockerContext: ./server
     dockerfilePath: ./server/Dockerfile
-    region: ohio
-    plan: starter
-    healthCheckPath: /health
+    region: oregon
+    plan: free
     envVars:
       - key: MONGODB_URL
-        sync: false
-      - key: CHROMA_URL
         sync: false
       - key: GEMINI_API_KEY
         sync: false
@@ -18,30 +15,5 @@ services:
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
-
-  - type: pserv
-    name: maia-mongodb
-    runtime: image
-    image:
-      url: docker.io/library/mongo:7.0
-    disk:
-      name: mongodb-data
-      mountPath: /data/db
-      sizeGB: 10
-    envVars:
-      - key: MONGO_INITDB_DATABASE
-        value: vettalaw
-      - key: MONGO_INITDB_ROOT_USERNAME
-        value: maia_admin
-      - key: MONGO_INITDB_ROOT_PASSWORD
-        generateValue: true
-
-  - type: pserv
-    name: maia-chromadb
-    runtime: image
-    image:
-      url: docker.io/chromadb/chroma:0.6.3
-    disk:
-      name: chromadb-data
-      mountPath: /chroma/chroma
-      sizeGB: 10
+      - key: CHROMA_URL
+        value: local

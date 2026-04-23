@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = ""
 
     # RAG / Embeddings
-    CHROMA_URL: str = "http://chromadb:8000"
+    CHROMA_URL: str = "local"
     EMBEDDING_MODEL: str = "models/text-embedding-004"
 
     # Auth (RF-02, RF-07, RNF-05)
@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://maia.vettahub.com.br",
     ]
 
     model_config = {
