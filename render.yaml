@@ -20,10 +20,7 @@ services:
     healthCheckPath: /health # Supondo que você crie/tenha uma rota /health ou / na sua API
     envVars:
       - key: MONGODB_URL
-        fromService:
-          type: pserv
-          name: maia-mongodb
-          envVarKey: connectionString
+        sync: false # Você preencherá manualmente com a url completa
       - key: CHROMA_URL
         value: http://maia-chromadb:8000
       - key: GEMINI_API_KEY
@@ -49,9 +46,7 @@ services:
       - key: MONGO_INITDB_ROOT_USERNAME
         value: maia_admin
       - key: MONGO_INITDB_ROOT_PASSWORD
-        generateValue: true # Render vai criar uma senha forte aleatória
-      - key: connectionString
-        value: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@maia-mongodb:27017/vettalaw?authSource=admin
+        sync: false # Você usará a mesma senha do .env.production
 
   # 3. BANCO DE MEMÓRIA VETORIAL (ChromaDB Privado)
   - type: pserv
