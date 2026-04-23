@@ -182,6 +182,3 @@ async def request_signature(db: AsyncIOMotorDatabase, peca_id: str, workspace_id
         }}, return_document=True
     )
     return _serialize(updated)
-cument=True
-    )
-    return _serialize(updated)
