@@ -1,39 +1,27 @@
-# =========================================================================
-# MAIA PLATFORM - INFRASTRUCTURE AS CODE (Render Blueprint)
-# =========================================================================
-# Este arquivo automatiza a criação do ambiente na Render com 1 clique.
-#
-# COMO USAR:
-# 1. No painel da Render, vá em "Blueprints" > "New Blueprint Instance"
-# 2. Conecte ao repositório do Github.
-# 3. Ele lerá este arquivo e criará os Bancos e a API automaticamente!
-
 services:
-  # 1. API PRINCIPAL DA MAIA (Serviço Web Público)
   - type: web
     name: maia-backend
-    env: docker
-    rootDir: server
-    dockerfilePath: Dockerfile
-    region: ohio # Altere para frankfurt ou oregon se preferir
-    plan: starter # Starter ($7/mês) sugerido para processamento de IA/Python
-    healthCheckPath: /health # Supondo que você crie/tenha uma rota /health ou / na sua API
+    runtime: docker
+    dockerContext: ./server
+    dockerfilePath: ./server/Dockerfile
+    region: ohio
+    plan: starter
+    healthCheckPath: /health
     envVars:
       - key: MONGODB_URL
-        sync: false # Você preencherá manualmente com a url completa
+        sync: false
       - key: CHROMA_URL
-        value: http://maia-chromadb:8000
+        sync: false
       - key: GEMINI_API_KEY
-        sync: false # Você preencherá no painel manualmente depois (Segurança)
+        sync: false
       - key: JWT_SECRET
-        sync: false # Preencher manualmente depois (Use a chave gerada antes)
+        sync: false
       - key: ENCRYPTION_KEY
-        sync: false # Preencher manualmente depois
+        sync: false
 
-  # 2. BANCO DE DADOS (MongoDB Privado via Docker)
-  - type: pserv # Serviço Privado (Não acessível da internet direta, apenas pelo Backend)
+  - type: pserv
     name: maia-mongodb
-    env: image
+    runtime: image
     image:
       url: docker.io/library/mongo:7.0
     disk:
@@ -46,12 +34,11 @@ services:
       - key: MONGO_INITDB_ROOT_USERNAME
         value: maia_admin
       - key: MONGO_INITDB_ROOT_PASSWORD
-        sync: false # Você usará a mesma senha do .env.production
+        generateValue: true
 
-  # 3. BANCO DE MEMÓRIA VETORIAL (ChromaDB Privado)
   - type: pserv
     name: maia-chromadb
-    env: image
+    runtime: image
     image:
       url: docker.io/chromadb/chroma:0.6.3
     disk:
