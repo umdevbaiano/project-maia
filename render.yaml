@@ -33,9 +33,9 @@ services:
   # 2. BANCO DE DADOS (MongoDB Privado via Docker)
   - type: pserv # Serviço Privado (Não acessível da internet direta, apenas pelo Backend)
     name: maia-mongodb
-    env: docker
+    env: image
     image:
-      url: mongo:7.0
+      url: docker.io/library/mongo:7.0
     disk:
       name: mongodb-data
       mountPath: /data/db
@@ -51,9 +51,9 @@ services:
   # 3. BANCO DE MEMÓRIA VETORIAL (ChromaDB Privado)
   - type: pserv
     name: maia-chromadb
-    env: docker
+    env: image
     image:
-      url: chromadb/chroma:0.6.3
+      url: docker.io/chromadb/chroma:0.6.3
     disk:
       name: chromadb-data
       mountPath: /chroma/chroma
