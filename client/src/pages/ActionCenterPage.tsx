@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Shield, Key, Bot, ChevronUp, Server, CheckCircle2, CircleDashed } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { Shield, Key, Bot, ChevronUp, Server, CheckCircle2, CircleDashed } from 'lucide-react';
 
 const ActionCenterPage: React.FC = () => {
   const [certUploaded, setCertUploaded] = useState(false);
