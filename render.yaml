@@ -23,7 +23,7 @@ services:
         fromService:
           type: pserv
           name: maia-mongodb
-          property: connectionString
+          envVarKey: connectionString
       - key: CHROMA_URL
         value: http://maia-chromadb:8000
       - key: GEMINI_API_KEY
