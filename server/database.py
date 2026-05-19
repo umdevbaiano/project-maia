@@ -16,11 +16,14 @@ async def _init_indexes(db: AsyncIOMotorDatabase) -> None:
 async def connect_db() -> None:
     global _client, _database
     settings = get_settings()
-    _client = AsyncIOMotorClient(settings.MONGODB_URL)
+    # Set short server selection timeout so startup fails fast instead of hanging
+    _client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=3000)
     _database = _client[settings.DATABASE_NAME]
     
-    await _init_indexes(_database)
-    print(f"✅ Connected to MongoDB: {settings.DATABASE_NAME}")
+    # Run index creation in background task so index failures don't block server startup
+    import asyncio
+    asyncio.create_task(_init_indexes(_database))
+    print(f"✅ Connected to MongoDB: {settings.DATABASE_NAME} (indexes building in background)")
 
 
 async def disconnect_db() -> None:
