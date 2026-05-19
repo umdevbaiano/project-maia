@@ -1,367 +1,551 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Sun, 
-  Moon, 
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Sun,
+  Moon,
   ArrowRight,
   Menu,
   X,
-  Shield,
-  Brain,
-  FileSearch,
-  Sparkles,
-  Scale
+  Scale,
+  FileText,
+  Search,
+  BadgeCheck,
+  Lock,
+  Cpu,
+  Database,
+  Zap,
+  BarChart3,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Link } from 'react-router-dom';
 
+// ── Scroll Reveal Hook ──
+const useReveal = () => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('visible');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.12 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return ref;
+};
+
+// ── Reusable Section Wrapper with Reveal ──
+const RevealSection: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+  id?: string;
+  delay?: number;
+}> = ({ children, className = '', id, delay }) => {
+  const ref = useReveal();
+  return (
+    <div
+      ref={ref}
+      id={id}
+      className={`reveal ${delay ? `reveal-delay-${delay}` : ''} ${className}`}
+    >
+      {children}
+    </div>
+  );
+};
+
+// ── Main Component ──
 const LandingPage: React.FC = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
+
   return (
-    <div className="min-h-screen font-sans selection:bg-blue-100 dark:selection:bg-blue-900">
-      {/* Navbar */}
-      <nav 
+    <div className="min-h-screen font-sans">
+      {/* ════════════════════════════════════════════
+          NAVBAR
+      ════════════════════════════════════════════ */}
+      <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled ? 'glass py-3' : 'bg-transparent py-5'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-              M
-            </div>
-            <span className="text-xl font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
-              Maia
+        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <Scale className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+            <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--text-main)' }}>
+              MAIA
             </span>
           </div>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
-            <a href="#como-funciona" className="btn-maia-ghost">Como Funciona</a>
-            <a href="#diferenciais" className="btn-maia-ghost">Diferenciais</a>
-            <a href="#tecnologia" className="btn-maia-ghost">Tecnologia</a>
+            <a href="#o-que-e" className="btn-maia-ghost text-sm">O que é</a>
+            <a href="#como-funciona" className="btn-maia-ghost text-sm">Como funciona</a>
+            <a href="#diferenciais" className="btn-maia-ghost text-sm">Diferenciais</a>
+            <a href="#tecnologia" className="btn-maia-ghost text-sm">Tecnologia</a>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button 
+          <div className="flex items-center gap-3">
+            <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Toggle Theme"
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              aria-label="Alternar tema"
             >
-              {resolvedTheme === 'dark' ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-slate-600" />}
+              {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <Link to="/chat" className="btn-maia-primary whitespace-nowrap">
-              Testar a IA
+            <Link to="/chat" className="btn-maia-primary text-sm !px-5 !py-2.5 whitespace-nowrap">
+              Experimentar
+              <ArrowRight size={16} />
             </Link>
-            <button 
+            <button
               className="md:hidden p-2"
+              style={{ color: 'var(--text-main)' }}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Menu"
             >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass absolute top-full left-0 right-0 p-6 flex flex-col gap-4 animate-in slide-in-from-top-4 duration-200">
-            <a href="#como-funciona" className="text-lg font-medium py-2">Como Funciona</a>
-            <a href="#diferenciais" className="text-lg font-medium py-2">Diferenciais</a>
-            <a href="#tecnologia" className="text-lg font-medium py-2">Tecnologia</a>
-            <hr className="border-gray-200 dark:border-slate-800" />
-            <Link to="/chat" className="text-lg font-medium py-2 text-center">Testar a IA</Link>
+          <div
+            className="md:hidden absolute top-full left-0 right-0 glass p-6 flex flex-col gap-3"
+            style={{ borderTop: '1px solid var(--border)' }}
+          >
+            <a href="#o-que-e" onClick={closeMobileMenu} className="text-base font-medium py-2" style={{ color: 'var(--text-main)' }}>O que é</a>
+            <a href="#como-funciona" onClick={closeMobileMenu} className="text-base font-medium py-2" style={{ color: 'var(--text-main)' }}>Como funciona</a>
+            <a href="#diferenciais" onClick={closeMobileMenu} className="text-base font-medium py-2" style={{ color: 'var(--text-main)' }}>Diferenciais</a>
+            <a href="#tecnologia" onClick={closeMobileMenu} className="text-base font-medium py-2" style={{ color: 'var(--text-main)' }}>Tecnologia</a>
+            <div className="h-px w-full" style={{ background: 'var(--border)' }} />
+            <Link to="/chat" onClick={closeMobileMenu} className="btn-maia-primary text-center">
+              Experimentar
+            </Link>
           </div>
         )}
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-sm font-medium mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
-            Apresentação OAB • Inteligência Artificial Jurídica
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] max-w-4xl leading-[1.1] mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            IA que lê seus documentos.<br />
-            <span className="text-blue-600">Sem alucinação.</span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-[#475569] dark:text-[#94A3B8] max-w-2xl mb-12 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-200">
-            A Maia usa <strong>RAG (Retrieval-Augmented Generation)</strong> para fundamentar cada resposta exclusivamente na doutrina e nos documentos que você inserir. Zero invenção.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 mb-20 animate-in fade-in slide-in-from-bottom-12 duration-700 delay-300">
-            <Link to="/chat" className="btn-maia-primary text-lg !px-8 !py-4 flex items-center gap-2 group">
-              Testar a IA Agora
-              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
+      {/* ════════════════════════════════════════════
+          HERO
+      ════════════════════════════════════════════ */}
+      <section className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
+        {/* Ambient glow — subtle, not mesh gradient */}
+        <div
+          className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full opacity-20 dark:opacity-10 blur-[120px] pointer-events-none"
+          style={{ background: 'var(--accent)' }}
+        />
 
-          {/* Hero Mockup — Chat Preview */}
-          <div className="relative w-full max-w-4xl mx-auto animate-in fade-in zoom-in-95 duration-1000 delay-500">
-            <div className="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full -z-10"></div>
-            <div className="rounded-2xl border border-gray-200 dark:border-slate-800 overflow-hidden shadow-2xl bg-white dark:bg-[#151E2E]">
-              {/* Mockup Toolbar */}
-              <div className="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-800 px-4 py-3 flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                </div>
-                <div className="mx-auto flex items-center gap-2 px-4 py-1 bg-gray-200 dark:bg-slate-800 rounded-md">
-                  <Scale className="w-3 h-3 text-gray-500" />
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">maia.vettahub.com.br/chat</span>
+        <div className="relative z-10 text-center max-w-3xl mx-auto">
+          {/* Brand name */}
+          <h1
+            className="font-display text-7xl sm:text-8xl md:text-9xl font-bold tracking-tight mb-6"
+            style={{ color: 'var(--text-main)' }}
+          >
+            MAIA
+            <span style={{ color: 'var(--accent)' }}>.</span>
+          </h1>
+
+          {/* Slogan */}
+          <p
+            className="text-xl sm:text-2xl md:text-3xl font-medium tracking-wide mb-8"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Leia. Pergunte. Confie.
+          </p>
+
+          {/* One-liner */}
+          <p
+            className="text-base sm:text-lg mb-12 max-w-xl mx-auto leading-relaxed"
+            style={{ color: 'var(--text-subtle)' }}
+          >
+            Assistente jurídica com inteligência artificial que só responde o que pode provar.
+          </p>
+
+          {/* CTA */}
+          <Link
+            to="/chat"
+            className="btn-maia-primary text-base !px-8 !py-4 inline-flex items-center gap-2.5 group"
+          >
+            Experimentar agora
+            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
+
+        {/* Floating Chat Preview */}
+        <div className="relative z-10 mt-20 w-full max-w-2xl mx-auto">
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              boxShadow: '0 25px 60px -15px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div className="p-6 space-y-5">
+              {/* User message */}
+              <div className="flex justify-end">
+                <div
+                  className="px-4 py-3 rounded-lg text-sm max-w-sm"
+                  style={{ background: 'var(--accent)', color: '#0F172A' }}
+                >
+                  Quais são os requisitos da rescisão indireta segundo o art. 483 da CLT?
                 </div>
               </div>
-              {/* Mockup Content — Chat simulation */}
-              <div className="p-8 space-y-6">
-                {/* User message */}
-                <div className="flex justify-end">
-                  <div className="bg-blue-600 text-white px-5 py-3 rounded-lg max-w-md text-sm">
-                    Quais são os requisitos para rescisão indireta segundo o art. 483 da CLT?
-                  </div>
+              {/* AI response */}
+              <div className="flex gap-3">
+                <div
+                  className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+                >
+                  <Scale className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
                 </div>
-                {/* AI response */}
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 text-xs font-bold">M</span>
+                <div>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-main)' }}>
+                    <strong>Resumo Executivo</strong> — O art. 483 da CLT prevê hipóteses taxativas em que o empregado pode considerar rescindido o contrato e pleitear indenização...
+                  </p>
+                  <div
+                    className="mt-3 px-3 py-2 rounded-md text-xs font-medium flex items-center gap-2"
+                    style={{
+                      background: 'rgba(212, 175, 55, 0.08)',
+                      border: '1px solid rgba(212, 175, 55, 0.2)',
+                      color: 'var(--accent)',
+                    }}
+                  >
+                    <BadgeCheck className="w-3.5 h-3.5" />
+                    Fonte: CLT_Consolidada.pdf, Art. 483 — Verificada
                   </div>
-                  <div className="bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 px-5 py-4 rounded-lg max-w-lg">
-                    <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">
-                      <strong>RESUMO EXECUTIVO</strong><br />
-                      O art. 483 da CLT elenca as hipóteses taxativas de rescisão indireta...
-                    </p>
-                    <div className="mt-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100 dark:border-blue-800">
-                      <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                        📄 [Doc: CLT_Consolidada.pdf, Art. 483] — Fonte verificada
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {/* RAG indicator */}
-                <div className="flex items-center justify-center gap-2 pt-4">
-                  <div className="h-px flex-1 bg-gray-100 dark:bg-slate-800"></div>
-                  <span className="text-[10px] font-bold uppercase text-emerald-500 tracking-widest flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Resposta fundamentada em documento real
-                  </span>
-                  <div className="h-px flex-1 bg-gray-100 dark:bg-slate-800"></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+          <div className="w-5 h-8 rounded-full flex items-start justify-center pt-1.5" style={{ border: '1.5px solid var(--text-subtle)' }}>
+            <div
+              className="w-1 h-2 rounded-full animate-bounce"
+              style={{ background: 'var(--text-subtle)' }}
+            />
+          </div>
+        </div>
       </section>
 
-      {/* How It Works */}
-      <section id="como-funciona" className="py-32 border-t border-gray-100 dark:border-slate-900">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-20 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
-              Como o RAG funciona na prática?
+      {/* ════════════════════════════════════════════
+          O QUE É MAIA — Acronym Section
+      ════════════════════════════════════════════ */}
+      <section id="o-que-e" className="py-28 sm:py-36" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="max-w-5xl mx-auto px-6">
+          <RevealSection>
+            <div className="gold-line mb-8" />
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-16" style={{ color: 'var(--text-main)' }}>
+              O que é MAIA?
             </h2>
-            <p className="text-xl text-[#475569] dark:text-[#94A3B8] max-w-2xl mx-auto">
-              Em 3 passos, você sai de um PDF bruto para respostas jurídicas com citação obrigatória.
-            </p>
+          </RevealSection>
+
+          {/* Acronym Breakdown */}
+          <div className="space-y-8 sm:space-y-10 mb-16">
+            {[
+              { letter: 'M', word: 'Módulo', rest: 'A base que conecta tudo — documentos, perguntas e respostas em um fluxo único.' },
+              { letter: 'A', word: 'de Apoio', rest: 'Não substitui o advogado. Amplifica seu trabalho, reduzindo horas de pesquisa a segundos.' },
+              { letter: 'I', word: 'Inteligente', rest: 'IA treinada para o ecossistema jurídico brasileiro, com anti-alucinação nativo.' },
+              { letter: 'A', word: 'à Advocacia', rest: 'Feita para quem vive o Direito. CLT, CPC, Código Penal, CF e mais de 10 leis indexadas.' },
+            ].map((item, i) => (
+              <RevealSection key={i} delay={i + 1}>
+                <div className="flex items-start gap-6 sm:gap-10">
+                  <span className="acronym-letter text-5xl sm:text-6xl md:text-7xl leading-none select-none min-w-[52px] text-right">
+                    {item.letter}
+                  </span>
+                  <div className="pt-1 sm:pt-2">
+                    <h3 className="text-xl sm:text-2xl font-semibold mb-2" style={{ color: 'var(--text-main)' }}>
+                      {item.word}
+                    </h3>
+                    <p className="text-base leading-relaxed max-w-lg" style={{ color: 'var(--text-muted)' }}>
+                      {item.rest}
+                    </p>
+                  </div>
+                </div>
+              </RevealSection>
+            ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <RevealSection>
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
+              style={{
+                background: 'rgba(212, 175, 55, 0.08)',
+                border: '1px solid rgba(212, 175, 55, 0.15)',
+                color: 'var(--accent)',
+              }}
+            >
+              <Cpu className="w-4 h-4" />
+              Desenvolvida pela Vetta Hub para o ecossistema jurídico brasileiro
+            </div>
+          </RevealSection>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════
+          COMO FUNCIONA
+      ════════════════════════════════════════════ */}
+      <section
+        id="como-funciona"
+        className="py-28 sm:py-36"
+        style={{ background: 'var(--surface)', borderTop: '1px solid var(--border-subtle)' }}
+      >
+        <div className="max-w-5xl mx-auto px-6">
+          <RevealSection>
+            <div className="gold-line mb-8" />
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6" style={{ color: 'var(--text-main)' }}>
+              Como funciona?
+            </h2>
+            <p className="text-lg mb-20 max-w-xl" style={{ color: 'var(--text-muted)' }}>
+              Três passos. Do documento à resposta fundamentada.
+            </p>
+          </RevealSection>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
             {[
               {
                 step: '01',
-                icon: FileSearch,
-                title: 'Envie o Documento',
-                desc: 'Arraste PDFs, DOCX ou TXT para a tela de chat. A IA extrai o texto, divide em fragmentos semânticos e indexa no banco vetorial ChromaDB.',
-                detail: 'Chunking inteligente com 10% de overlap',
-                color: 'blue',
+                icon: FileText,
+                title: 'Envie',
+                desc: 'Arraste contratos, petições ou qualquer PDF para o chat. A Maia lê, entende e memoriza cada página.',
               },
               {
                 step: '02',
-                icon: Brain,
-                title: 'Busca Híbrida (RAG)',
-                desc: 'Quando você faz uma pergunta, o sistema executa busca semântica (vetorial) + busca por palavras-chave (BM25) e combina os resultados com Reciprocal Rank Fusion.',
-                detail: 'Dense + Sparse + RRF = Máxima precisão',
-                color: 'sky',
+                icon: Search,
+                title: 'Pergunte',
+                desc: 'Faça sua pergunta em linguagem natural. A Maia busca nos seus documentos o trecho exato que responde.',
               },
               {
                 step: '03',
-                icon: Shield,
-                title: 'Resposta com Grounding',
-                desc: 'A IA gera a resposta usando APENAS os fragmentos recuperados como fonte. Se a informação não estiver nos documentos, ela declara isso explicitamente.',
-                detail: 'Chain of Verification anti-alucinação',
-                color: 'emerald',
+                icon: BadgeCheck,
+                title: 'Confie',
+                desc: 'Cada resposta vem com a citação do documento e da página. Se a informação não existe, ela avisa.',
               },
             ].map((item, i) => (
-              <div
-                key={i}
-                className="group relative rounded-3xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#151E2E] overflow-hidden p-10 flex flex-col hover:shadow-xl transition-all duration-300"
-              >
-                <span className="text-7xl font-black text-gray-100 dark:text-slate-900 absolute top-4 right-6 select-none">
-                  {item.step}
-                </span>
-                <div className={`w-14 h-14 rounded-2xl bg-${item.color}-50 dark:bg-${item.color}-900/30 flex items-center justify-center text-${item.color}-600 dark:text-${item.color}-400 mb-6`}>
-                  <item.icon size={28} />
-                </div>
-                <h3 className="text-2xl font-bold mb-4">{item.title}</h3>
-                <p className="text-[#475569] dark:text-[#94A3B8] mb-6 leading-relaxed flex-1">
-                  {item.desc}
-                </p>
-                <div className={`px-4 py-2 rounded-xl bg-${item.color}-50 dark:bg-${item.color}-900/20 border border-${item.color}-100 dark:border-${item.color}-800`}>
-                  <p className={`text-xs font-bold text-${item.color}-600 dark:text-${item.color}-400`}>
-                    ⚡ {item.detail}
+              <RevealSection key={i} delay={i + 1}>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-4 mb-5">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center"
+                      style={{ background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.15)' }}
+                    >
+                      <item.icon className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+                    </div>
+                    <span className="text-xs font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--text-subtle)' }}>
+                      Passo {item.step}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-3" style={{ color: 'var(--text-main)' }}>
+                    {item.title}
+                  </h3>
+                  <p className="text-base leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                    {item.desc}
                   </p>
                 </div>
-              </div>
+              </RevealSection>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Differentials */}
-      <section id="diferenciais" className="py-32 bg-[#F8FAFC] dark:bg-[#030712]">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-20 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
-              Por que a Maia é diferente?
+      {/* ════════════════════════════════════════════
+          DIFERENCIAIS
+      ════════════════════════════════════════════ */}
+      <section
+        id="diferenciais"
+        className="py-28 sm:py-36"
+        style={{ borderTop: '1px solid var(--border-subtle)' }}
+      >
+        <div className="max-w-5xl mx-auto px-6">
+          <RevealSection>
+            <div className="gold-line mb-8" />
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6" style={{ color: 'var(--text-main)' }}>
+              Por que não usar o ChatGPT?
             </h2>
-            <p className="text-xl text-[#475569] dark:text-[#94A3B8] max-w-2xl mx-auto">
-              Enquanto IAs genéricas "inventam" jurisprudência, a Maia trabalha exclusivamente com fontes reais.
+            <p className="text-lg mb-20 max-w-2xl" style={{ color: 'var(--text-muted)' }}>
+              IAs genéricas inventam leis, fabricam jurisprudência e não têm acesso aos seus documentos. A Maia faz diferente.
             </p>
-          </div>
+          </RevealSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Comparison */}
-            <div className="rounded-3xl border-2 border-red-200 dark:border-red-900/50 bg-white dark:bg-[#151E2E] p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-500">
-                  <X size={20} />
-                </div>
-                <h3 className="text-xl font-bold text-red-600 dark:text-red-400">IA Genérica (ChatGPT, etc.)</h3>
-              </div>
-              <ul className="space-y-4 text-[#475569] dark:text-[#94A3B8]">
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✗</span>
-                  <span>Inventa artigos de lei e jurisprudência inexistente</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✗</span>
-                  <span>Não tem acesso aos documentos do seu processo</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✗</span>
-                  <span>Dados sensíveis vazam para servidores externos</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-0.5">✗</span>
-                  <span>Sem citação de fontes — impossível verificar</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="rounded-3xl border-2 border-emerald-200 dark:border-emerald-900/50 bg-white dark:bg-[#151E2E] p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-500">
-                  <Sparkles size={20} />
-                </div>
-                <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">Maia (RAG Jurídico)</h3>
-              </div>
-              <ul className="space-y-4 text-[#475569] dark:text-[#94A3B8]">
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span>
-                  <span><strong>Grounding estrito</strong> — só responde com base nos documentos inseridos</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span>
-                  <span>Busca semântica nos PDFs do seu escritório</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span>
-                  <span><strong>LGPD compliant</strong> — dados criptografados, processamento local</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-emerald-500 mt-0.5">✓</span>
-                  <span><strong>Citação obrigatória</strong> — [Doc: arquivo.pdf, pág. X]</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Technology Stack */}
-      <section id="tecnologia" className="py-32 border-t border-gray-100 dark:border-slate-900">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-20 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
-              Arquitetura de Referência
-            </h2>
-            <p className="text-xl text-[#475569] dark:text-[#94A3B8] max-w-2xl mx-auto">
-              Stack moderna, escalável e segura — projetada para o ecossistema jurídico brasileiro.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            {[
-              { name: 'Google Gemini', desc: 'LLM principal', icon: '🧠' },
-              { name: 'ChromaDB', desc: 'Banco Vetorial', icon: '🗄️' },
-              { name: 'FastAPI', desc: 'Backend Python', icon: '⚡' },
-              { name: 'React + Vite', desc: 'Frontend SPA', icon: '💻' },
-              { name: 'BM25 + Dense', desc: 'Busca Híbrida', icon: '🔍' },
-              { name: 'RRF Fusion', desc: 'Ranking Inteligente', icon: '📊' },
-              { name: 'AES-256', desc: 'Criptografia', icon: '🔒' },
-              { name: 'MongoDB', desc: 'Persistência', icon: '🍃' },
-            ].map((tech, i) => (
+          {/* Asymmetric comparison */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Generic AI — compact */}
+            <RevealSection delay={1} className="lg:col-span-2">
               <div
-                key={i}
-                className="group p-6 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#151E2E] hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-800 transition-all duration-300 text-center"
+                className="h-full p-8 rounded-lg"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
-                <span className="text-3xl mb-3 block">{tech.icon}</span>
-                <h4 className="font-bold text-sm mb-1">{tech.name}</h4>
-                <p className="text-[10px] uppercase tracking-widest text-[#475569] dark:text-[#94A3B8] font-medium">{tech.desc}</p>
+                <p className="text-sm font-bold uppercase tracking-[0.15em] mb-6" style={{ color: 'var(--text-subtle)' }}>
+                  IA Genérica
+                </p>
+                <ul className="space-y-4">
+                  {[
+                    'Inventa artigos e jurisprudência',
+                    'Sem acesso aos seus documentos',
+                    'Dados sensíveis em servidores externos',
+                    'Sem citação de fontes',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+                      <X className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#E11D48' }} />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
+            </RevealSection>
+
+            {/* MAIA — prominent */}
+            <RevealSection delay={2} className="lg:col-span-3">
+              <div
+                className="h-full p-8 rounded-lg"
+                style={{
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid rgba(212, 175, 55, 0.2)',
+                  boxShadow: '0 0 40px -10px rgba(212, 175, 55, 0.08)',
+                }}
+              >
+                <div className="flex items-center gap-2 mb-6">
+                  <Scale className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+                  <p className="text-sm font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--accent)' }}>
+                    MAIA
+                  </p>
+                </div>
+                <ul className="space-y-5">
+                  {[
+                    { title: 'Grounding estrito', desc: 'Só responde com base nos documentos que você inseriu.' },
+                    { title: 'Busca semântica', desc: 'Encontra trechos relevantes mesmo quando a pergunta não usa as mesmas palavras do texto.' },
+                    { title: 'LGPD compliant', desc: 'Dados criptografados, processamento seguro, sem vazamento.' },
+                    { title: 'Citação obrigatória', desc: 'Toda resposta referencia documento, página e trecho exato.' },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <BadgeCheck className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: '#10B981' }} />
+                      <div>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>{item.title}</span>
+                        <span className="text-sm ml-1" style={{ color: 'var(--text-muted)' }}>— {item.desc}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </RevealSection>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════
+          TECNOLOGIA
+      ════════════════════════════════════════════ */}
+      <section
+        id="tecnologia"
+        className="py-28 sm:py-36"
+        style={{ background: 'var(--surface)', borderTop: '1px solid var(--border-subtle)' }}
+      >
+        <div className="max-w-5xl mx-auto px-6">
+          <RevealSection>
+            <div className="gold-line mb-8" />
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6" style={{ color: 'var(--text-main)' }}>
+              Arquitetura
+            </h2>
+            <p className="text-lg mb-20 max-w-xl" style={{ color: 'var(--text-muted)' }}>
+              Stack moderna, segura e projetada para o ecossistema jurídico brasileiro.
+            </p>
+          </RevealSection>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { name: 'MAIA IA', desc: 'IA Proprietária · Vetta Hub', icon: Cpu },
+              { name: 'ChromaDB', desc: 'Banco Vetorial', icon: Database },
+              { name: 'FastAPI', desc: 'Backend Python', icon: Zap },
+              { name: 'React + Vite', desc: 'Frontend SPA', icon: BarChart3 },
+              { name: 'Busca Híbrida', desc: 'Semântica + Palavras-chave', icon: Search },
+              { name: 'Ranking Inteligente', desc: 'Fusão de Resultados', icon: BarChart3 },
+              { name: 'AES-256', desc: 'Criptografia', icon: Lock },
+              { name: 'MongoDB', desc: 'Persistência', icon: ShieldCheck },
+            ].map((tech, i) => (
+              <RevealSection key={i} delay={(i % 4) + 1}>
+                <div
+                  className="p-5 rounded-lg text-center transition-all duration-200 hover:scale-[1.02]"
+                  style={{
+                    background: 'var(--surface-elevated)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <tech.icon className="w-5 h-5 mx-auto mb-3" style={{ color: 'var(--accent)' }} />
+                  <h4 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-main)' }}>{tech.name}</h4>
+                  <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-subtle)' }}>{tech.desc}</p>
+                </div>
+              </RevealSection>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 border-t border-gray-200 dark:border-slate-900 bg-slate-50 dark:bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-8">
-            Veja a IA jurídica<br />em ação.
-          </h2>
-          <p className="text-xl text-[#475569] dark:text-[#94A3B8] mb-12 max-w-2xl mx-auto">
-            Envie um documento real e faça perguntas. A Maia vai fundamentar cada resposta diretamente no texto — sem inventar nada.
-          </p>
-          <Link to="/chat" className="btn-maia-primary text-xl px-12 py-5 inline-flex items-center gap-3 group">
-            Testar a IA Agora
-            <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-          </Link>
+      {/* ════════════════════════════════════════════
+          CTA FINAL
+      ════════════════════════════════════════════ */}
+      <section className="py-28 sm:py-36" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="max-w-5xl mx-auto px-6 text-center">
+          <RevealSection>
+            <h2
+              className="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6"
+              style={{ color: 'var(--text-main)' }}
+            >
+              Veja com seus<br />próprios olhos.
+            </h2>
+            <p
+              className="text-lg mb-12 max-w-lg mx-auto leading-relaxed"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Envie um documento e faça uma pergunta. A resposta vem com a fonte.
+            </p>
+            <Link
+              to="/chat"
+              className="btn-maia-primary text-base !px-10 !py-4 inline-flex items-center gap-2.5 group"
+            >
+              Experimentar agora
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </RevealSection>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-white dark:bg-[#0B0F19] border-t border-gray-100 dark:border-slate-900">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[#475569] dark:text-[#94A3B8]">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center text-white text-xs font-bold">
-              M
-            </div>
-            <span className="font-bold text-[#0F172A] dark:text-[#F8FAFC]">Maia</span>
-            <span className="text-xs">• Projeto Themis</span>
+      {/* ════════════════════════════════════════════
+          FOOTER
+      ════════════════════════════════════════════ */}
+      <footer style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <Scale className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+            <span className="font-bold text-sm" style={{ color: 'var(--text-main)' }}>MAIA</span>
+            <span className="text-xs" style={{ color: 'var(--text-subtle)' }}>• Vetta Hub</span>
           </div>
-          <p>© 2026 Maia Tecnologia Jurídica. Todos os direitos reservados.</p>
+          <p className="text-sm" style={{ color: 'var(--text-subtle)' }}>
+            © 2026 Vetta Hub. Todos os direitos reservados.
+          </p>
         </div>
       </footer>
     </div>

@@ -4,76 +4,121 @@
 
 @layer base {
   :root {
-    --background: #FAFAFA;
-    --surface: #FFFFFF;
-    --primary: #2563EB;
-    --accent: #38BDF8;
+    --background: #FAFAFD;
+    --surface: #F1F5F9;
+    --surface-elevated: #FFFFFF;
+    --primary: #0F172A;
+    --accent: #D4AF37;
+    --accent-muted: #B8962E;
     --text-main: #0F172A;
-    --text-muted: #475569;
+    --text-muted: #64748B;
+    --text-subtle: #94A3B8;
     --border: #E2E8F0;
-    --glass-bg: rgba(255, 255, 255, 0.4);
-    --glass-border: rgba(0, 0, 0, 0.05);
+    --border-subtle: #F1F5F9;
+    --glass-bg: rgba(255, 255, 255, 0.6);
+    --glass-border: rgba(0, 0, 0, 0.06);
   }
 
   .dark {
-    --background: #090E1A;
-    --surface: #111827;
-    --primary: #3B82F6;
-    --accent: #60A5FA;
-    --text-main: #F8FAFC;
-    --text-muted: #94A3B8;
-    --border: rgba(255, 255, 255, 0.08);
-    --glass-bg: rgba(17, 24, 39, 0.5);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --background: #050B14;
+    --surface: #0F1A2A;
+    --surface-elevated: #17253D;
+    --primary: #FAFAFD;
+    --accent: #D4AF37;
+    --accent-muted: #C9A434;
+    --text-main: #FAFAFD;
+    --text-muted: #8A9DB0;
+    --text-subtle: #4A5F76;
+    --border: #1E3048;
+    --border-subtle: #152238;
+    --glass-bg: rgba(15, 26, 42, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.06);
   }
 
   body {
     background-color: var(--background);
     color: var(--text-main);
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', 'Outfit', sans-serif;
     @apply antialiased transition-colors duration-300;
   }
 
   * {
     border-color: var(--border);
   }
+
+  ::selection {
+    background-color: rgba(212, 175, 55, 0.2);
+    color: var(--text-main);
+  }
 }
 
 @layer components {
+  /* Glass effect — refined */
   .glass {
     @apply backdrop-blur-2xl border shadow-sm transition-all duration-300;
     background-color: var(--glass-bg);
     border-color: var(--glass-border);
   }
-  
-  .glass-premium {
-    @apply backdrop-blur-3xl border shadow-2xl transition-all duration-500;
-    background: linear-gradient(135deg, var(--glass-bg), rgba(255,255,255,0.02));
-    border-color: var(--glass-border);
-  }
 
-  .glow-blue {
-    box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3);
-  }
-
-  .bento-card {
-    @apply glass rounded-[2rem] p-8 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:glow-blue active:scale-[0.98] border border-transparent hover:border-blue-500/20;
-  }
-
+  /* Buttons */
   .btn-maia-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all duration-200 font-semibold shadow-sm active:scale-95 flex items-center justify-center gap-2;
+    @apply px-6 py-3 rounded-lg transition-all duration-200 font-semibold shadow-sm active:scale-[0.97] flex items-center justify-center gap-2;
+    background-color: var(--accent);
+    color: #0F172A;
   }
-...
 
-  .dark .btn-maia-primary {
-    @apply bg-[#3B82F6] hover:bg-[#2563eb];
+  .btn-maia-primary:hover {
+    background-color: var(--accent-muted);
+    box-shadow: 0 0 20px -4px rgba(212, 175, 55, 0.4);
   }
 
   .btn-maia-ghost {
-    @apply px-4 py-2 text-[#475569] hover:text-[#0F172A] transition-colors rounded-lg font-medium;
+    @apply px-4 py-2 transition-colors rounded-lg font-medium;
+    color: var(--text-muted);
   }
 
-  .dark .btn-maia-ghost {
-    @apply text-[#94A3B8] hover:text-[#F8FAFC];
+  .btn-maia-ghost:hover {
+    color: var(--text-main);
+  }
+
+  /* Scroll reveal animation */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-delay-1 { transition-delay: 100ms; }
+  .reveal-delay-2 { transition-delay: 200ms; }
+  .reveal-delay-3 { transition-delay: 300ms; }
+  .reveal-delay-4 { transition-delay: 400ms; }
+
+  /* Gold accent line */
+  .gold-line {
+    @apply h-px w-16;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  /* Acronym letter style */
+  .acronym-letter {
+    font-family: 'Playfair Display', serif;
+    color: var(--accent);
+    @apply font-bold;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .font-display {
+    font-family: 'Playfair Display', serif;
   }
 }
