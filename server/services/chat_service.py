@@ -225,3 +225,86 @@ async def clear_chat_history(
     query = {"workspace_id": workspace_id, "caso_id": caso_id} if caso_id else {"workspace_id": workspace_id, "caso_id": {"$exists": False}}
     result = await db[COLLECTION_NAME].delete_many(query)
     return result.deleted_count
+
+
+async def analyze_document_stream(
+    db: AsyncIOMotorDatabase,
+    file_bytes: bytes,
+    file_type: str,
+    filename: str,
+    instruction: str,
+    ai_provider,
+    workspace_id: str,
+    user_id: str,
+) -> AsyncGenerator[str, None]:
+    """
+    Analyze an uploaded document with a specific instruction.
+    Extracts text, chunks it, and passes as temporary RAG context.
+    Does NOT permanently index the document — it's an on-the-fly analysis.
+    """
+    collection = db[COLLECTION_NAME]
+
+    # Save user message to history
+    user_content = f"📄 [{filename}] {instruction}"
+    user_message = {
+        "role": "user",
+        "content": encrypt_field(user_content),
+        "timestamp": datetime.now(timezone.utc),
+        "workspace_id": workspace_id,
+        "user_id": user_id,
+    }
+    await collection.insert_one(user_message)
+
+    # Extract and chunk the document text
+    text = rag.extract_text(file_bytes, file_type)
+    if not text.strip():
+        error_msg = "Não foi possível extrair texto deste documento. Verifique se o arquivo não está protegido ou corrompido."
+        yield error_msg
+        return
+
+    chunks = rag.chunk_text(text, chunk_size=1500)
+
+    # Build the analysis prompt with document context
+    analysis_prompt = (
+        f"O usuário enviou o documento '{filename}' ({file_type.upper()}, {len(text)} caracteres, "
+        f"{len(chunks)} fragmentos) com a seguinte instrução:\n\n"
+        f"📋 INSTRUÇÃO DO USUÁRIO: {instruction}\n\n"
+        f"Analise o documento conforme solicitado. Siga o protocolo de ANÁLISE DE DOCUMENTOS "
+        f"definido nas suas diretrizes."
+    )
+
+    # Get conversation history for context
+    cursor = collection.find({"workspace_id": workspace_id, "caso_id": {"$exists": False}}).sort("timestamp", -1).limit(5)
+    context = []
+    async for doc in cursor:
+        content = decrypt_field(doc["content"]) if doc.get("content") else ""
+        context.append({"role": doc["role"], "content": content})
+    context.reverse()
+
+    # Also retrieve relevant legislation for cross-referencing
+    legal_chunks = []
+    try:
+        result = await rag.retrieve_hybrid(workspace_id, instruction)
+        legal_chunks = result.get("legal", [])
+    except Exception:
+        pass
+
+    # Format document chunks as RAG context
+    doc_chunks = [f"[Doc: {filename}] {chunk}" for chunk in chunks[:20]]  # Cap at 20 chunks
+
+    full_reply = ""
+    async for chunk in ai_provider.generate_stream(
+        analysis_prompt, context, rag_context=doc_chunks, legal_context=legal_chunks,
+    ):
+        full_reply += chunk
+        yield chunk
+
+    # Save AI reply to history
+    ai_message = {
+        "role": "ai",
+        "content": encrypt_field(full_reply),
+        "timestamp": datetime.now(timezone.utc),
+        "workspace_id": workspace_id,
+        "user_id": "maia",
+    }
+    await collection.insert_one(ai_message)

@@ -76,7 +76,10 @@ INSTRUÇÕES: {instrucoes}
 REGRAS: Linguagem formal, Cite leis reais, Formato Markdown.
 NUNCA invente dados. Use [NOME], [CPF] se faltar.
 """
-    return prompt, titulo, c_iasync def generate_peca(db: AsyncIOMotorDatabase, ai: AIProvider, workspace_id: str, user_id: str, tipo: TipoPeca, instrucoes: str, caso_id: Optional[str] = None) -> dict:
+    return prompt, titulo, c_id, c_nome, legal, rag_ctx
+
+
+async def generate_peca(db: AsyncIOMotorDatabase, ai: AIProvider, workspace_id: str, user_id: str, tipo: TipoPeca, instrucoes: str, caso_id: Optional[str] = None) -> dict:
     prompt, titulo, c_id, c_nome, legal, rag_ctx = await _build_peca_context_and_prompts(db, workspace_id, tipo, instrucoes, caso_id)
     conteudo = await ai.generate(prompt, rag_context=rag_ctx, legal_context=legal)
     

@@ -58,9 +58,28 @@ class GeminiProvider(AIProvider):
         context: Optional[list[dict]] = None,
         rag_context: Optional[list[str]] = None,
         legal_context: Optional[list[str]] = None,
+        user_preferences: Optional[str] = None,
     ) -> str:
-        """Build the full prompt with system instructions, RAG, and history."""
-        full_prompt = f"{MAIA_SYSTEM_PROMPT}\n\n"
+        """Build the full prompt with system instructions, RAG, confidence level, and history."""
+        from core.ai.prompts import DEFAULT_USER_PREFERENCES
+
+        # Inject user preferences into system prompt
+        prefs = user_preferences or DEFAULT_USER_PREFERENCES
+        system = MAIA_SYSTEM_PROMPT.replace("{user_preferences}", prefs)
+        full_prompt = f"{system}\n\n"
+
+        # Determine confidence level based on available sources
+        has_docs = bool(rag_context)
+        has_legal = bool(legal_context)
+
+        if has_docs and has_legal:
+            full_prompt += "🟢 NÍVEL DE CONFIANÇA: MÁXIMO — Documentos do usuário + Legislação indexada disponíveis.\n\n"
+        elif has_docs:
+            full_prompt += "🟢 NÍVEL DE CONFIANÇA: ALTO — Documentos do usuário disponíveis.\n\n"
+        elif has_legal:
+            full_prompt += "🟡 NÍVEL DE CONFIANÇA: MÉDIO — Apenas legislação indexada disponível (sem documentos do usuário).\n\n"
+        else:
+            full_prompt += "🔴 NÍVEL DE CONFIANÇA: BAIXO — Nenhuma fonte indexada encontrada. Use Camada 3 (conhecimento geral) COM AVISO EXPLÍCITO ao usuário.\n\n"
 
         if legal_context:
             full_prompt += RAG_LEGAL_INSTRUCTION
@@ -87,6 +106,7 @@ class GeminiProvider(AIProvider):
         context: Optional[list[dict]] = None,
         rag_context: Optional[list[str]] = None,
         legal_context: Optional[list[str]] = None,
+        **kwargs,
     ) -> str:
         """Generate a response using Google Gemini with optional RAG and Web Search."""
         if not self._model:
@@ -140,6 +160,7 @@ class GeminiProvider(AIProvider):
         context: Optional[list[dict]] = None,
         rag_context: Optional[list[str]] = None,
         legal_context: Optional[list[str]] = None,
+        **kwargs,
     ) -> AsyncGenerator[str, None]:
         """Stream a response token-by-token using Gemini's streaming API with Web Search."""
         if not self._model:

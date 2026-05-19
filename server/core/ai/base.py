@@ -16,6 +16,8 @@ class AIProvider(ABC):
         prompt: str,
         context: list[dict] | None = None,
         rag_context: list[str] | None = None,
+        legal_context: list[str] | None = None,
+        **kwargs,
     ) -> str:
         """
         Generate a response from the AI model.

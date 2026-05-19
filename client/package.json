@@ -15,7 +15,7 @@
     "@tauri-apps/api": "^1.5.3",
     "axios": "^1.6.5",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.38.0",
+    "framer-motion": "^12.39.0",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.316.0",

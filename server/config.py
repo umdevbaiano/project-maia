@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
 
+    # Demo Mode — bypasses authentication for testing
+    DEMO_MODE: bool = True
+    DEMO_WORKSPACE_ID: str = "demo_workspace_test"
+    DEMO_USER_ID: str = "demo_user_test"
+
+    # OAB Demo Mode — reduces platform to AI-only (chat + documents + RAG)
+    # Set to True for the OAB presentation, False for full platform
+    OAB_DEMO_MODE: bool = True
+
     # Email Notifications
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587

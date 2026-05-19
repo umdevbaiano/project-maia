@@ -32,12 +32,14 @@ class ResilientLLM(AIProvider):
         prompt: str,
         context: Optional[List[dict]] = None,
         rag_context: Optional[List[str]] = None,
+        legal_context: Optional[List[str]] = None,
+        **kwargs,
     ) -> str:
         last_error = None
         for provider in self.providers:
             try:
                 logger.info(f"🔄 Attempting generation with provider: {provider.get_model_name()}")
-                return await provider.generate(prompt, context, rag_context)
+                return await provider.generate(prompt, context, rag_context, legal_context, **kwargs)
             except Exception as e:
                 logger.error(f"❌ Provider {provider.get_model_name()} failed: {e}")
                 last_error = e
@@ -51,6 +53,7 @@ class ResilientLLM(AIProvider):
         context: Optional[List[dict]] = None,
         rag_context: Optional[List[str]] = None,
         legal_context: Optional[List[str]] = None,
+        **kwargs,
     ) -> AsyncGenerator[str, None]:
         """
         Streaming fallback is more complex. If the first provider fails mid-stream,
@@ -63,7 +66,7 @@ class ResilientLLM(AIProvider):
         for provider in self.providers:
             try:
                 # We attempt to initialize the stream
-                stream = provider.generate_stream(prompt, context, rag_context, legal_context)
+                stream = provider.generate_stream(prompt, context, rag_context, legal_context, **kwargs)
                 
                 # We check if the stream produces at least one chunk or a failure quickly
                 # (Simplification: just yield from it and let it fail if it must)

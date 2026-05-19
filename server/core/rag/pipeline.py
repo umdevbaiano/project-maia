@@ -337,14 +337,76 @@ async def retrieve(workspace_id: str, query: str, top_k: int = 5, caso_id: Optio
         return []
 
 
-async def retrieve_legal(query: str, top_k: int = 5) -> list[str]:
-    """Retrieve from global legal base."""
+async def retrieve_legal(query: str, top_k: int = 8) -> list[str]:
+    """
+    Retrieve from global legal base using Hybrid Search (BM25 + Semantic + RRF).
+    Same approach as workspace retrieval but for the legislacao_br collection.
+    """
     try:
         collection = _get_legal_collection()
-        if collection.count() == 0:
+        total = collection.count()
+        if total == 0:
             return []
-        results = collection.query(query_texts=[query], n_results=top_k)
-        return results["documents"][0] if results["documents"] else []
+
+        # 1. Get all docs for BM25 (legal base is finite ~16k chunks)
+        # For performance, we fetch a sample via semantic pre-filter
+        semantic_results = collection.query(
+            query_texts=[query],
+            n_results=min(top_k * 5, total),
+            include=["documents", "metadatas"],
+        )
+
+        if not semantic_results["ids"] or not semantic_results["ids"][0]:
+            return []
+
+        sem_ids = semantic_results["ids"][0]
+        sem_docs = semantic_results["documents"][0]
+        sem_metas = semantic_results["metadatas"][0]
+
+        # Dense ranks
+        dense_ranks = {doc_id: rank + 1 for rank, doc_id in enumerate(sem_ids)}
+
+        # 2. BM25 sparse search on the semantic candidates
+        tokenized_corpus = [doc.lower().split() for doc in sem_docs]
+        bm25 = BM25Okapi(tokenized_corpus)
+        tokenized_query = query.lower().split()
+        bm25_scores = bm25.get_scores(tokenized_query)
+
+        sparse_ranking = sorted(
+            [(score, doc_id) for score, doc_id in zip(bm25_scores, sem_ids) if score > 0],
+            reverse=True,
+            key=lambda x: x[0],
+        )
+        sparse_ranks = {doc_id: rank + 1 for rank, (_, doc_id) in enumerate(sparse_ranking)}
+
+        # 3. RRF fusion
+        k_rrf = 60
+        rrf_scores = {}
+        for doc_id in sem_ids:
+            rrf_score = 0
+            if doc_id in dense_ranks:
+                rrf_score += 1 / (k_rrf + dense_ranks[doc_id])
+            if doc_id in sparse_ranks:
+                rrf_score += 1 / (k_rrf + sparse_ranks[doc_id])
+            rrf_scores[doc_id] = rrf_score
+
+        top_ids = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)[:top_k]
+
+        final_docs = []
+        for d_id in top_ids:
+            if rrf_scores[d_id] == 0:
+                continue
+            idx = sem_ids.index(d_id)
+            meta = sem_metas[idx]
+            law_name = meta.get("law_name", "Legislação")
+            hierarchy = meta.get("hierarchy", "")
+            cite = f"[Lei: {law_name}"
+            if hierarchy:
+                cite += f", {hierarchy}"
+            cite += "]"
+            final_docs.append(f"{cite} {sem_docs[idx]}")
+
+        return final_docs
     except Exception as e:
         print(f"Legal retrieval error: {e}")
         return []
@@ -352,9 +414,10 @@ async def retrieve_legal(query: str, top_k: int = 5) -> list[str]:
 
 async def retrieve_hybrid(workspace_id: str, query: str, caso_id: Optional[str] = None) -> dict:
     """
-    Hybrid retrieval: legal base (top-5) + workspace docs (top-3).
+    Hybrid retrieval: legal base (top-8) + workspace docs (top-5).
     Returns {"legal": [...], "workspace": [...]}
     """
-    legal = await retrieve_legal(query, top_k=5)
-    workspace = await retrieve(workspace_id, query, top_k=3, caso_id=caso_id)
+    legal = await retrieve_legal(query, top_k=8)
+    workspace = await retrieve(workspace_id, query, top_k=5, caso_id=caso_id)
     return {"legal": legal, "workspace": workspace}
+

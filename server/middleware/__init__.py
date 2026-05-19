@@ -1,7 +1,8 @@
 import logging
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from config import get_settings
 from database import get_database
 from services.auth_service import verify_jwt_token, get_user_by_id
 from cachetools import TTLCache
@@ -10,7 +11,7 @@ from models.user import UserRole
 logger = logging.getLogger(__name__)
 
 # Security scheme
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 # 5 minutes TTL Cache to massively reduce DB hits per API Request (Max 1000 concurrent sessions cached)
 user_cache = TTLCache(maxsize=1000, ttl=300)
@@ -24,6 +25,13 @@ async def get_current_user(
     Returns the full user dict from MongoDB.
     Raises 401 if token is invalid or user not found.
     """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token não fornecido.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     token = credentials.credentials
     payload = verify_jwt_token(token)
 
@@ -82,6 +90,42 @@ async def get_current_user(
     user_cache[user_id] = user
 
     return user
+
+
+async def get_current_user_or_demo(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    """
+    FastAPI dependency for demo mode.
+    If DEMO_MODE is active and no valid token is provided, returns a fixed demo user.
+    Otherwise, behaves like get_current_user.
+    """
+    settings = get_settings()
+
+    # Try real auth first if credentials are provided
+    if credentials and credentials.credentials:
+        try:
+            return await get_current_user(credentials)
+        except HTTPException:
+            if not settings.DEMO_MODE:
+                raise
+
+    # Fall back to demo user if DEMO_MODE is active
+    if settings.DEMO_MODE:
+        return {
+            "_user_id": settings.DEMO_USER_ID,
+            "_workspace_id": settings.DEMO_WORKSPACE_ID,
+            "_role": "admin",
+            "name": "Advogado (Demo)",
+            "email": "demo@maia.test",
+            "is_active": True,
+        }
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token não fornecido.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def require_roles(*allowed_roles: UserRole):
