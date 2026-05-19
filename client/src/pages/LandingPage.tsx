@@ -163,7 +163,6 @@ const LandingPage: React.FC = () => {
             style={{ color: 'var(--text-main)' }}
           >
             MAIA
-            <span style={{ color: 'var(--accent)' }}>.</span>
           </h1>
 
           {/* Slogan */}
