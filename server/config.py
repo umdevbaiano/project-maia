@@ -52,11 +52,13 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "noreply@maia.com"
 
-    # CORS
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
         "https://maia.vettahub.com.br",
+        "https://project-maia.vercel.app",
+        "https://project-maia-git-main-umdevbaianos-projects.vercel.app",
+        "https://project-maia-umdevbaianos-projects.vercel.app",
     ]
 
     model_config = {
