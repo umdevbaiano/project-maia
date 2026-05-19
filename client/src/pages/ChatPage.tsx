@@ -134,6 +134,7 @@ const ChatPage: React.FC = () => {
   };
 
   const handleUploadAndIndex = async (file: File) => {
+    setIsUploading(true);
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const token = localStorage.getItem('maia_token');
     const tempId = `uploading-${Date.now()}-${file.name}`;
@@ -162,6 +163,8 @@ const ChatPage: React.FC = () => {
       setUploadedDocs((prev) =>
         prev.map((d) => (d.id === tempId ? { ...d, status: 'error', message: 'Falha' } : d))
       );
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -433,7 +436,7 @@ const ChatPage: React.FC = () => {
         accept=".pdf,.txt,.docx"
         multiple
         className="hidden"
-        onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
+        onChange={(e) => e.target.files && handleAttachFiles(e.target.files)}
       />
 
       {/* Header */}
