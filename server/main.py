@@ -10,51 +10,54 @@ from core.ai.factory import get_ai_provider
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect_db()
-    
-    get_ai_provider()
-    print("🤖 AI Provider initialized")
+    # MongoDB — graceful: server starts even if DB is unreachable
+    try:
+        await connect_db()
+    except Exception as e:
+        print(f"⚠️  MongoDB connection failed (server will run without persistence): {e}")
+
+    # AI Provider
+    try:
+        get_ai_provider()
+        print("🤖 AI Provider initialized")
+    except Exception as e:
+        print(f"⚠️  AI Provider init failed: {e}")
 
     settings = get_settings()
     if not settings.OAB_DEMO_MODE:
-        # Full platform schedulers — disabled in OAB demo mode
         from core.legal.updater import start_legal_updater
         from core.notifications.scheduler import start_notification_scheduler
         asyncio.create_task(start_legal_updater())
         asyncio.create_task(start_notification_scheduler())
         print("🚀 Maia Platform API is ready! (Full Mode)")
     else:
-        # OAB Demo: populate legal base
-        if settings.OAB_DEMO_MODE:
+        try:
+            from core.rag.pipeline import _get_legal_collection
+            from core.legal.scraper import scrape_all_laws
+            from core.legal.seed_loader import process_seed_doctrine
+
             try:
-                from core.rag.pipeline import _get_legal_collection
-                from core.legal.scraper import scrape_all_laws
-                from core.legal.seed_loader import process_seed_doctrine
-                
-                # 1. First process any local doctrine PDFs
-                try:
-                    process_seed_doctrine()
-                except Exception as e:
-                    print(f"Erro ao processar doctrine seed: {e}")
-
-                # 2. Then check if Planalto laws need scraping
-                col = _get_legal_collection()
-                if col.count() < 1000:
-                    print("OAB Demo Boot: Base legal vazia. Iniciando scraping do Planalto em background...")
-                    asyncio.create_task(scrape_all_laws())
-                else:
-                    print(f"OAB Demo Boot: Base legal pronta com {col.count()} chunks. (Scraping ignorado)")
+                process_seed_doctrine()
             except Exception as e:
-                print(f"Failed to boot OAB Demo legal base: {e}")
+                print(f"Erro ao processar doctrine seed: {e}")
 
-            print("⚖️  Maia API ready! (OAB Demo — base legal sendo populada em background...)")
-        else:
-            # Fallback for previous logic if needed or just empty
-            pass
-    
+            col = _get_legal_collection()
+            if col.count() < 1000:
+                print("OAB Demo Boot: Base legal vazia. Iniciando scraping do Planalto em background...")
+                asyncio.create_task(scrape_all_laws())
+            else:
+                print(f"OAB Demo Boot: Base legal pronta com {col.count()} chunks. (Scraping ignorado)")
+        except Exception as e:
+            print(f"Failed to boot OAB Demo legal base: {e}")
+
+        print("⚖️  Maia API ready! (OAB Demo)")
+
     yield
-    
-    await disconnect_db()
+
+    try:
+        await disconnect_db()
+    except Exception:
+        pass
     print("👋 Maia Platform API shutting down.")
 
 

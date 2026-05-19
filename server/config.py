@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "models/text-embedding-004"
 
     # Auth (RF-02, RF-07, RNF-05)
-    # No default — must be explicitly set via environment variable.
+    # In production, set via environment variable.
     # Generate a strong secret: python -c "import secrets; print(secrets.token_hex(64))"
-    JWT_SECRET: str
+    JWT_SECRET: str = "demo-insecure-secret-change-in-production"
     JWT_EXPIRATION_HOURS: int = 8
     BCRYPT_ROUNDS: int = 12
 
